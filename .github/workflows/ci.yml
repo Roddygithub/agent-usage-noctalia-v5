@@ -26,7 +26,10 @@ jobs:
         run: luau-lsp analyze --platform=standard . || true
 
       - name: Protocol Round-trip Test
-        run: lua specs/test_protocol_roundtrip.lua
+        run: |
+          lua -v
+          lua -e "print('package.path:', package.path)"
+          lua specs/test_protocol_roundtrip.lua
 
       - name: Collector Unit Tests
         run: lua collectors/test_collectors.lua
