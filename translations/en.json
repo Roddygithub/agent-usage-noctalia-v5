@@ -1,0 +1,39 @@
+{
+  "settings.refresh_interval.label": "Refresh Interval",
+  "settings.refresh_interval.description": "How often to check agent usage (seconds)",
+
+  "settings.enabled_agents.label": "Enabled Agents",
+  "settings.enabled_agents.description": "Comma-separated list of agents to monitor",
+
+  "settings.sync_mode.label": "Sync Mode",
+  "settings.sync_mode.description": "Enable multi-machine sync via shared folder",
+  "settings.sync_mode.off": "Disabled",
+  "settings.sync_mode.on": "Enabled",
+
+  "settings.sync_dir.label": "Sync Directory",
+  "settings.sync_dir.description": "Shared folder for multi-machine sync (Syncthing, Dropbox, rsync)",
+
+  "settings.sync_device_id.label": "Device ID",
+  "settings.sync_device_id.description": "Stable identifier for this machine in sync",
+
+  "settings.show_speaking_indicator.label": "Show Speaking Indicator",
+  "settings.show_speaking_indicator.description": "Show pulse animation when agent is actively processing",
+
+  "settings.widget.glyph_opencode.label": "opencode Glyph",
+  "settings.widget.glyph_opencode.description": "Glyph for opencode agent",
+
+  "settings.widget.glyph_claude.label": "Claude Glyph",
+  "settings.widget.glyph_claude.description": "Glyph for Claude agent",
+
+  "settings.widget.glyph_codex.label": "Codex Glyph",
+  "settings.widget.glyph_codex.description": "Glyph for Codex agent",
+
+  "settings.widget.glyph_fireworks.label": "Fireworks Glyph",
+  "settings.widget.glyph_fireworks.description": "Glyph for Fireworks agent",
+
+  "settings.widget.hide_when_idle.label": "Hide When Idle",
+  "settings.widget.hide_when_idle.description": "Hide widget when no agents are active",
+
+  "keybinds.toggle_panel.label": "Toggle Agent Usage Panel",
+  "keybinds.force_refresh.label": "Force Refresh Agent Usage"
+}

@@ -1,0 +1,315 @@
+openapi: 3.0.3
+info:
+  title: Agent Usage Monitor Protocol
+  version: 1.0.0
+  description: |
+    Unix socket protocol for Agent Usage Monitor Noctalia V5 plugin.
+    Collectors (service) publish snapshots; Widget/Panel consume via noctalia.state.
+    Transport: Unix Domain Socket (AF_UNIX, SOCK_STREAM) at $XDG_RUNTIME_DIR/agent-usage.sock
+    Encoding: UTF-8, JSON Lines (one snapshot per line), header line for versioning.
+
+servers:
+  - url: unix://$XDG_RUNTIME_DIR/agent-usage.sock
+    description: Local Unix socket (user-only, SO_PEERCRED validated)
+
+components:
+  schemas:
+    Snapshot:
+      type: object
+      required: [version, timestamp, agent]
+      properties:
+        version:
+          type: integer
+          const: 1
+          description: Protocol version (increment on breaking changes)
+        timestamp:
+          type: integer
+          format: int64
+          description: Unix epoch milliseconds (Date.now())
+        agent:
+          type: string
+          enum: [opencode, claude, codex, fireworks]
+          description: Agent identifier
+        plan:
+          type: string
+          nullable: true
+          description: Plan name (Free, Pro, Max, etc.)
+        quota:
+          type: object
+          nullable: true
+          properties:
+            used:
+              type: integer
+              minimum: 0
+              description: Tokens/credits used in current period
+            limit:
+              type: integer
+              minimum: 0
+              description: Total quota for period (0 = unlimited)
+            reset_ms:
+              type: integer
+              format: int64
+              description: Unix epoch ms when quota resets
+            period:
+              type: string
+              enum: [hour, day, week, month, session]
+              description: Quota period type
+        balance:
+          type: object
+          nullable: true
+          properties:
+            credits:
+              type: number
+              format: float
+              description: Remaining credits (prepaid)
+            currency:
+              type: string
+              enum: [USD, EUR]
+              default: USD
+            estimated:
+              type: boolean
+              default: false
+              description: True if balance is estimated (not from live API)
+        speaking:
+          type: boolean
+          default: false
+          description: True if agent is currently processing (speaking indicator)
+        tokens_today:
+          type: integer
+          minimum: 0
+          default: 0
+          description: Total tokens consumed today (local timezone)
+        tokens_by_model:
+          type: object
+          additionalProperties:
+            type: integer
+            minimum: 0
+          default: {}
+          description: Token breakdown by model (e.g., {"gpt-4o": 30000, "gpt-4o-mini": 15000})
+        tokens_by_type:
+          type: object
+          nullable: true
+          properties:
+            input:
+              type: integer
+              minimum: 0
+            output:
+              type: integer
+              minimum: 0
+            cache:
+              type: integer
+              minimum: 0
+          description: Token split by type (input/output/cache)
+        limits:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              used:
+                type: integer
+              limit:
+                type: integer
+              reset_ms:
+                type: integer
+                format: int64
+              percent:
+                type: number
+                format: float
+                minimum: 0
+                maximum: 100
+          description: Detailed limits breakdown (session, weekly, etc.)
+
+    CollectorConfig:
+      type: object
+      properties:
+        opencode:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+              default: true
+            config_path:
+              type: string
+              default: "~/.config/opencode/usage.json"
+        claude:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+              default: true
+            config_dir:
+              type: string
+              default: "~/.claude"
+            use_oauth:
+              type: boolean
+              default: true
+        codex:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+              default: true
+            config_dir:
+              type: string
+              default: "~/.codex"
+            use_rpc:
+              type: boolean
+              default: true
+        fireworks:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+              default: true
+            api_key_env:
+              type: string
+              default: "FIREWORKS_API_KEY"
+            config_path:
+              type: string
+              default: "~/.config/agent-usage/fireworks.json"
+
+    PluginSettings:
+      type: object
+      properties:
+        refresh_interval_sec:
+          type: integer
+          minimum: 60
+          maximum: 3600
+          default: 300
+        enabled_agents:
+          type: array
+          items:
+            type: string
+            enum: [opencode, claude, codex, fireworks]
+          default: ["opencode", "claude", "codex", "fireworks"]
+        sync_mode:
+          type: string
+          enum: [Off, On]
+          default: "Off"
+        sync_dir:
+          type: string
+          default: ""
+        sync_device_id:
+          type: string
+          default: ""
+        show_speaking_indicator:
+          type: boolean
+          default: true
+
+  responses:
+    ProtocolError:
+      description: Protocol-level error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              code:
+                type: integer
+              message:
+                type: string
+
+paths:
+  /snapshot:
+    post:
+      summary: Publish a usage snapshot (Collector → Widget/Panel)
+      description: |
+        Collectors send snapshots via Unix socket. The header line identifies protocol version.
+        Payload is JSON Lines (one complete snapshot per line).
+      requestBody:
+        required: true
+        content:
+          application/x-json-lines:
+            schema:
+              $ref: '#/components/schemas/Snapshot'
+      responses:
+        '204':
+          description: Snapshot accepted
+        '400':
+          $ref: '#/components/responses/ProtocolError'
+        '503':
+          $ref: '#/components/responses/ProtocolError'
+
+  /config:
+    get:
+      summary: Get current plugin settings (Collector → Service)
+      responses:
+        '200':
+          description: Current plugin settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PluginSettings'
+        '503':
+          $ref: '#/components/responses/ProtocolError'
+
+  /collect:
+    post:
+      summary: Trigger immediate collection (Widget/Panel → Service)
+      responses:
+        '204':
+          description: Collection triggered
+        '503':
+          $ref: '#/components/responses/ProtocolError'
+
+  /sync:
+    post:
+      summary: Trigger sync write (Service → Collector for multi-machine)
+      responses:
+        '204':
+          description: Sync written
+        '503':
+          $ref: '#/components/responses/ProtocolError'
+
+x-protocol:
+  name: AGENT_USAGE
+  version: 1
+  transport:
+    type: unix_socket
+    path: "$XDG_RUNTIME_DIR/agent-usage.sock"
+    permissions: "0700"
+    peercred_validation: true
+  framing:
+    header: "AGENT_USAGE/1.0\n"
+    payload: "json_lines"
+    encoding: "utf-8"
+  versioning:
+    header_format: "AGENT_USAGE/{major}.{minor}\n"
+    compatibility: "forward_compatible"
+    breaking_change: "major_version_increment"
+  collectors:
+    opencode:
+      source: "~/.config/opencode/usage.json"
+      fields: [tokens, plan, reset_timestamp]
+    claude:
+      source: "~/.claude/stats-cache.json + history.jsonl + OAuth"
+      fields: [quota, balance, tokens_today, tokens_by_model, speaking]
+    codex:
+      source: "~/.codex/sessions/ + RPC"
+      fields: [tokens_by_model, tokens_by_type, plan, speaking]
+    fireworks:
+      source: "Billing API + ~/.config/agent-usage/fireworks.json"
+      fields: [balance, tokens_today, tokens_by_model, tokens_by_type]
+
+x-collector-contract:
+  name: "collector_module"
+  exports:
+    name: "string"
+    collect: "function(config: table) -> snapshot|nil, error"
+    validate_config: "function(config: table) -> boolean, error"
+    default_config: "table"
+
+x-testing:
+  protocol_roundtrip:
+    description: "Serialize Snapshot in TypeScript → deserialize in Rust → serialize in Lua → compare"
+    test_file: "specs/test_protocol_roundtrip.lua"
+  collector_unit_tests:
+    test_dir: "collectors/"
+    pattern: "test_*.lua"
+  integration:
+    test_file: "scripts/test_integration.sh"
+    requires: "noctalia_running"

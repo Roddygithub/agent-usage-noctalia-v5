@@ -1,0 +1,158 @@
+# Agent Usage Monitor for Noctalia V5
+# Manifest for AI coding agent usage monitoring
+# Author: roddygithub
+# Plugin ID: roddygithub/agent-usage
+
+id = "roddygithub/agent-usage"
+name = "Agent Usage Monitor"
+version = "0.1.0"
+plugin_api = 27
+author = "roddygithub"
+license = "GPL-3.0"
+deprecated = false
+tags = ["ai", "coding", "agents", "usage", "monitoring"]
+dependencies = []
+icon = "robot"
+description = "Native AI coding agent usage monitor for Noctalia V5. Tracks quota, balance, and token analytics for opencode, Claude, Codex, and Fireworks."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Plugin-level settings (shared across all entries)
+# ─────────────────────────────────────────────────────────────────────────────
+[[setting]]
+key = "refresh_interval_sec"
+type = "int"
+label_key = "settings.refresh_interval.label"
+description_key = "settings.refresh_interval.description"
+default = 300
+min_value = 60
+max_value = 3600
+step = 60
+advanced = false
+
+[[setting]]
+key = "enabled_agents"
+type = "string_list"
+label_key = "settings.enabled_agents.label"
+description_key = "settings.enabled_agents.description"
+default = "opencode,claude,codex,fireworks"
+advanced = false
+
+[[setting]]
+key = "sync_mode"
+type = "select"
+label_key = "settings.sync_mode.label"
+description_key = "settings.sync_mode.description"
+default = "Off"
+options = [
+  { value = "Off", label_key = "settings.sync_mode.off" },
+  { value = "On", label_key = "settings.sync_mode.on" }
+]
+advanced = false
+
+[[setting]]
+key = "sync_dir"
+type = "folder"
+label_key = "settings.sync_dir.label"
+description_key = "settings.sync_dir.description"
+default = ""
+advanced = true
+
+[[setting]]
+key = "sync_device_id"
+type = "string"
+label_key = "settings.sync_device_id.label"
+description_key = "settings.sync_device_id.description"
+default = ""
+advanced = true
+
+[[setting]]
+key = "show_speaking_indicator"
+type = "bool"
+label_key = "settings.show_speaking_indicator.label"
+description_key = "settings.show_speaking_indicator.description"
+default = true
+advanced = false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Service: Headless background collector (singleton)
+# ─────────────────────────────────────────────────────────────────────────────
+[[service]]
+id = "collector"
+entry = "service.luau"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bar Widget: Compact status indicator with quota % and speaking pulse
+# ─────────────────────────────────────────────────────────────────────────────
+[[widget]]
+id = "status"
+entry = "bar_widget.luau"
+
+[[widget.setting]]
+key = "glyph_opencode"
+type = "glyph"
+label_key = "settings.widget.glyph_opencode.label"
+description_key = "settings.widget.glyph_opencode.description"
+default = "code"
+
+[[widget.setting]]
+key = "glyph_claude"
+type = "glyph"
+label_key = "settings.widget.glyph_claude.label"
+description_key = "settings.widget.glyph_claude.description"
+default = "bot"
+
+[[widget.setting]]
+key = "glyph_codex"
+type = "glyph"
+label_key = "settings.widget.glyph_codex.label"
+description_key = "settings.widget.glyph_codex.description"
+default = "terminal"
+
+[[widget.setting]]
+key = "glyph_fireworks"
+type = "glyph"
+label_key = "settings.widget.glyph_fireworks.label"
+description_key = "settings.widget.glyph_fireworks.description"
+default = "flame"
+
+[[widget.setting]]
+key = "hide_when_idle"
+type = "bool"
+label_key = "settings.widget.hide_when_idle.label"
+description_key = "settings.widget.hide_when_idle.description"
+default = false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Panel: Detailed view with limits, balance, tokens charts, sync status
+# ─────────────────────────────────────────────────────────────────────────────
+[[panel]]
+id = "detail"
+entry = "panel.luau"
+width = 520
+height = 580
+placement = "floating"
+position = "center"
+panel_dismiss_on_outside_click = true
+panel_keyboard_focus = "on_demand"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shortcut: Control Center quick toggle
+# ─────────────────────────────────────────────────────────────────────────────
+[[shortcut]]
+id = "toggle"
+entry = "shortcut.luau"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Keybinds: Global Noctalia keybinds
+# ─────────────────────────────────────────────────────────────────────────────
+[[keybind]]
+id = "toggle_panel"
+action = "panel:roddygithub/agent-usage:detail:toggle"
+label_key = "keybinds.toggle_panel.label"
+default = "Ctrl+Alt+A"
+
+[[keybind]]
+id = "force_refresh"
+action = "plugin:roddygithub/agent-usage:service:collector:refresh"
+label_key = "keybinds.force_refresh.label"
+default = "Ctrl+Alt+R"
