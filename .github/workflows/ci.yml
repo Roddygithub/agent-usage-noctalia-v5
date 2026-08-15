@@ -27,9 +27,9 @@ jobs:
 
       - name: Protocol Round-trip Test
         run: |
+          lua -e "for _,name in ipairs({'cjson','dkjson','rapidjson','json'}) do local ok,mod=pcall(require,name); print(name,ok and 'OK' or 'FAIL') end"
           curl -sL -o dkjson.lua https://raw.githubusercontent.com/LuaDist/dkjson/master/dkjson.lua
-          ls -la dkjson.lua
-          lua -e "package.path = package.path .. ';./?.lua'; local json = require('dkjson'); print('dkjson loaded:', json ~= nil)"
+          lua -e "package.path = package.path .. ';./?.lua'; local ok,json=pcall(require,'dkjson'); print('dkjson require:',ok)"
           lua specs/test_protocol_roundtrip.lua
 
       - name: Collector Unit Tests
