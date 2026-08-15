@@ -27,8 +27,7 @@ jobs:
 
       - name: Protocol Round-trip Test
         run: |
-          lua -v
-          lua -e "print('package.path:', package.path)"
+          curl -sL -o dkjson.lua https://raw.githubusercontent.com/LuaDist/dkjson/master/dkjson.lua
           lua specs/test_protocol_roundtrip.lua
 
       - name: Collector Unit Tests
