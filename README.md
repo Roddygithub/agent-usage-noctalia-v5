@@ -1,15 +1,17 @@
 # Agent Usage Monitor for Noctalia V5
 
-Native Noctalia V5 plugin that monitors AI coding agent usage (Claude, Codex, opencode, Fireworks) and displays real-time quota, balance, and token analytics in your bar and panel.
+Native Noctalia V5 plugin that monitors AI coding agent usage (Claude, Codex, opencode, Fireworks, OpenRouter, OpenCode Zen) and displays real-time quota, balance, and token analytics in your bar and panel.
 
 ## Features
 
-- **Multi-agent support**: Claude (Anthropic), Codex (OpenAI), opencode, Fireworks
+- **Multi-agent support**: Claude (Anthropic), Codex (OpenAI), opencode, Fireworks, OpenRouter, OpenCode Zen
 - **Real-time bar widget**: Glyph + quota percentage + speaking indicator
 - **Detailed panel**: Limits, balance, tokens/day, tokens/model, history
 - **Multi-machine sync**: Optional sync via Syncthing/Dropbox/rsync
 - **Zero token exposure**: Reads local usage files only, never touches API keys
 - **Native Noctalia V5**: Luau, layer-shell, declarative UI, shared state
+- **Persistent state cache**: Instant startup with last known state
+- **Graceful degradation**: Missing agents/APIs handled silently
 
 ## Architecture
 
@@ -30,6 +32,8 @@ Native Noctalia V5 plugin that monitors AI coding agent usage (Claude, Codex, op
 - `claude` → `~/.claude/stats-cache.json` + `history.jsonl` + OAuth API
 - `codex` → `~/.codex/sessions/` + app-server RPC
 - `fireworks` → Billing API + `~/.config/agent-usage/fireworks.json`
+- `openrouter` → OpenRouter API (`/auth/key` + `/models`) — reads key from `~/.local/share/opencode/auth.json`
+- `opencode-zen` → Detects free models via `~/.local/share/opencode/auth.json` (DeepSeek V4 Flash Free, MiMo, Nemotron, etc.)
 
 ## Installation
 
@@ -53,11 +57,21 @@ ln -s $(pwd) ~/.local/share/noctalia/plugins/agent-usage
 noctalia msg plugins enable roddygithub/agent-usage
 ```
 
-### From Noctalia Community Plugins (Future)
+### From Noctalia Community Plugins
 
 Once published to `noctalia-dev/community-plugins`:
 1. Settings → Plugins → Ensure `community` source enabled
 2. Search "Agent Usage" → Enable
+
+### Install Release Artifact
+
+Download from [Releases](https://github.com/Roddygithub/agent-usage-noctalia-v5/releases):
+```bash
+tar -xzf agent-usage-noctalia-v5-plugin-1.0.0.tar.gz
+mkdir -p ~/.local/share/noctalia/plugins
+mv agent-usage-noctalia-v5 ~/.local/share/noctalia/plugins/agent-usage
+noctalia msg plugins enable roddygithub/agent-usage
+```
 
 ## Usage
 
@@ -65,6 +79,7 @@ Once published to `noctalia-dev/community-plugins`:
 - **Left click**: Toggle panel
 - **Right click**: Force refresh
 - **Tooltip**: Detailed quota, balance, speaking status
+- **Speaking pulse**: Animated glyph when agent is processing
 
 ### Panel (Ctrl+Alt+A or bar click)
 - **Hero**: Active agent + plan + auth status
@@ -89,11 +104,22 @@ All settings in Noctalia Settings → Plugins → Agent Usage (gear icon):
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `refresh_interval_sec` | int | 300 | Collector refresh interval |
-| `enabled_agents` | list | ["opencode","claude","codex","fireworks"] | Which agents to track |
+| `enabled_agents` | list | ["opencode","claude","codex","fireworks","opencode-zen","openrouter"] | Which agents to track |
 | `sync_mode` | enum | "Off" | "Off" / "On" (multi-machine) |
 | `sync_dir` | path | "" | Syncthing/Dropbox/rsync folder |
 | `sync_device_id` | string | hostname | Stable device name |
 | `show_speaking_indicator` | bool | true | Pulse animation when agent active |
+
+### Widget Settings (per-instance)
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `glyph_opencode` | glyph | "code" | Glyph for opencode |
+| `glyph_claude` | glyph | "bot" | Glyph for Claude |
+| `glyph_codex` | glyph | "terminal" | Glyph for Codex |
+| `glyph_fireworks` | glyph | "flame" | Glyph for Fireworks |
+| `glyph_opencode_zen` | glyph | "sparkles" | Glyph for OpenCode Zen |
+| `glyph_openrouter` | glyph | "route" | Glyph for OpenRouter |
+| `hide_when_idle` | bool | false | Hide widget when no agents active |
 
 ## Development
 
@@ -150,7 +176,9 @@ collectors/
 ├── opencode.lua      # Reads ~/.config/opencode/usage.json
 ├── claude.lua        # Reads ~/.claude/stats-cache.json + OAuth
 ├── codex.lua         # Reads ~/.codex/sessions/ + RPC
-└── fireworks.lua     # Billing API + config
+├── fireworks.lua     # Billing API + config
+├── openrouter.lua    # OpenRouter API (credits, free models)
+└── opencode-zen.lua  # Detection only (no API tracking)
 ```
 
 Collectors are loaded by `service.luau` and run on the configured refresh interval.
@@ -195,10 +223,20 @@ Payload: JSON Lines (one snapshot per line)
 }
 ```
 
+## Release v1.0.0
+
+**Published**: 2026-08-15
+
+Artifacts:
+- `agent-usage-noctalia-v5-plugin-1.0.0.tar.gz` — Noctalia plugin package
+- `agent-usage-noctalia-v5-v1.0.0.tar.gz` — Full source archive
+
+[View Release](https://github.com/Roddygithub/agent-usage-noctalia-v5/releases/tag/v1.0.0)
+
 ## Distribution
 
 - **Source**: GitHub (this repo)
-- **Installation**: Noctalia plugin system (git source)
+- **Installation**: Noctalia plugin system (git source or artifact)
 - **Updates**: `noctalia msg plugins update <source>`
 
 ## License
@@ -212,3 +250,4 @@ GPL-3.0 — see `LICENSE`.
 - [Claude](https://anthropic.com) — Anthropic AI
 - [Codex](https://openai.com/codex) — OpenAI agent
 - [Fireworks](https://fireworks.ai) — Inference platform
+- [OpenRouter](https://openrouter.ai) — Multi-provider gateway
