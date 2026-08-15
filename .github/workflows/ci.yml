@@ -62,10 +62,11 @@ jobs:
           # Just create release archives
           set -x
           mkdir -p dist
-          git archive --format=tar.gz --prefix=agent-usage-noctalia-v5/ -o dist/agent-usage-noctalia-v5-${GITHUB_REF_NAME}.tar.gz ${GITHUB_REF_NAME}
+          # Use tar directly instead of git archive (works better with tags)
+          tar -czf dist/agent-usage-noctalia-v5-${GITHUB_REF_NAME}.tar.gz --transform="s,^,agent-usage-noctalia-v5/," --exclude=.git --exclude=dist .
           # Create plugin package for Noctalia
           cd dist
-          tar -czf agent-usage-noctalia-v5-plugin-${GITHUB_REF_NAME#v}.tar.gz -C ../ agent-usage-noctalia-v5/plugin.toml agent-usage-noctalia-v5/*.luau agent-usage-noctalia-v5/collectors/ agent-usage-noctalia-v5/translations/ agent-usage-noctalia-v5/specs/ agent-usage-noctalia-v5/README.md agent-usage-noctalia-v5/LICENSE
+          tar -czf agent-usage-noctalia-v5-plugin-${GITHUB_REF_NAME#v}.tar.gz plugin.toml *.luau collectors/ translations/ specs/ README.md LICENSE
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
