@@ -6,7 +6,7 @@
 --!nonstrict
 
 -- Mock noctalia.json for testing (not available outside Noctalia runtime)
-local json = require("specs.dkjson")
+local json = require("dkjson")
 noctalia = {
     json = {
         encode = json.encode,
