@@ -20,11 +20,7 @@ jobs:
 
       - name: Install luau-lsp
         run: |
-          # Use a specific known-working version to avoid breaking changes
-          LUAU_LSP_VERSION="1.3.0"
-          curl -L -o luau-lsp.zip "https://github.com/luau-lang/luau-lsp/releases/download/${LUAU_LSP_VERSION}/luau-lsp.zip"
-          unzip luau-lsp.zip -d luau-lsp
-          echo "$PWD/luau-lsp" >> $GITHUB_PATH
+          npm install -g luau-lsp@1.0.0
 
       - name: Luau Lint
         run: luau-lsp --check .
