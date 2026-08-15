@@ -5,6 +5,15 @@
 
 --!nonstrict
 
+-- Mock noctalia.json for testing (not available outside Noctalia runtime)
+local json = require("specs.dkjson")
+noctalia = {
+    json = {
+        encode = json.encode,
+        decode = json.decode,
+    }
+}
+
 local function now_ms()
     return os.time() * 1000
 end

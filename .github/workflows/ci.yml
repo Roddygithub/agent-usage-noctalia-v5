@@ -18,6 +18,9 @@ jobs:
         with:
           luaVersion: "5.1"
 
+      - name: Install dkjson (for protocol tests)
+        run: luarocks install dkjson
+
       - name: Install luau-lsp
         run: |
           npm install -g luau-lsp@1.0.0
