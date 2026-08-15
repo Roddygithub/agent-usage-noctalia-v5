@@ -60,6 +60,7 @@ jobs:
         run: |
           # Plugin is pure Luau, no build needed
           # Just create release archives
+          set -x
           mkdir -p dist
           git archive --format=tar.gz --prefix=agent-usage-noctalia-v5/ -o dist/agent-usage-noctalia-v5-${GITHUB_REF_NAME}.tar.gz ${GITHUB_REF_NAME}
           # Create plugin package for Noctalia
