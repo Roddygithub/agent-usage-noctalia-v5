@@ -5,6 +5,10 @@
 
 --!nonstrict
 
+local function now_ms()
+    return os.time() * 1000
+end
+
 local M = {
     name = "opencode",
     default_config = {
@@ -76,7 +80,7 @@ function M.collect(config)
     -- Build snapshot
     local snapshot = {
         version = 1,
-        timestamp = math.floor(os.clock() * 1000) + os.time() * 1000,
+        timestamp = now_ms(),
         agent = "opencode",
         plan = plan,
         quota = {

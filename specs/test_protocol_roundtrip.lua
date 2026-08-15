@@ -5,6 +5,10 @@
 
 --!nonstrict
 
+local function now_ms()
+    return os.time() * 1000
+end
+
 local function assert_equal(actual, expected, msg)
     if actual ~= expected then
         error((msg or "Assertion failed") .. ": expected " .. tostring(expected) .. ", got " .. tostring(actual))
@@ -226,7 +230,7 @@ end
 
 local function test_timestamp_precision()
     -- Test millisecond precision timestamps
-    local now_ms = math.floor(os.clock() * 1000) + os.time() * 1000
+    local now_ms = now_ms()
     local snap = {
         version = 1,
         timestamp = now_ms,

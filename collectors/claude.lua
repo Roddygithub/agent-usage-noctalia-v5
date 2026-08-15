@@ -5,6 +5,31 @@
 
 --!nonstrict
 
+local function now_ms()
+    return os.time() * 1000
+end
+
+-- Current Claude models (2025-2026) - from Anthropic docs
+local CLAUDE_MODELS = {
+    -- Current flagship models
+    "claude-fable-5",
+    "claude-opus-5",
+    "claude-sonnet-5",
+    "claude-haiku-4-5",
+    -- Legacy models (still available)
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "claude-sonnet-4-5",
+    "claude-opus-4-5",
+    "claude-3-5-sonnet-20241022",
+    "claude-3-5-haiku-20241022",
+    "claude-3-opus-20240229",
+    "claude-3-sonnet-20240229",
+    "claude-3-haiku-20240307",
+}
+
 local M = {
     name = "claude",
     default_config = {
@@ -105,7 +130,7 @@ local function read_local_cache(config)
             date = day.date,
             tokens = day.tokens or 0,
             today = (day.date == os.date("%Y-%m-%d")),
-        end)
+        })
     end
 
     -- Calculate tokens today
@@ -163,7 +188,7 @@ local function read_local_cache(config)
 
     return {
         version = 1,
-        timestamp = math.floor(os.clock() * 1000) + os.time() * 1000,
+        timestamp = now_ms(),
         agent = "claude",
         plan = cache_data.plan or "Pro",
         quota = {
@@ -216,7 +241,9 @@ function M.collect(config)
                 snapshot.quota = oauth_data.quota
             end
         else
-            log_warn("Claude OAuth unavailable: " .. tostring(err) .. ", using local cache")
+            if noctalia and noctalia.log then
+                noctalia.log("[agent-usage] WARN: Claude OAuth unavailable: " .. tostring(err) .. ", using local cache")
+            end
         end
     end
 

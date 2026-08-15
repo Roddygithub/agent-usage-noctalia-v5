@@ -5,6 +5,10 @@
 
 --!nonstrict
 
+local function now_ms()
+    return os.time() * 1000
+end
+
 local M = {
     name = "fireworks",
     default_config = {
@@ -149,7 +153,9 @@ function M.collect(config)
     else
         -- Use local estimate: funded - estimated spent based on model rates
         -- This is a rough estimate since we don't have actual usage without API
-        log_warn("Fireworks API unavailable: " .. tostring(api_err) .. ", using local estimate")
+        if noctalia and noctalia.log then
+            noctalia.log("[agent-usage] WARN: Fireworks API unavailable: " .. tostring(api_err) .. ", using local estimate")
+        end
     end
 
     -- For now, create a basic snapshot with estimated balance
@@ -158,7 +164,7 @@ function M.collect(config)
 
     local snapshot = {
         version = 1,
-        timestamp = math.floor(os.clock() * 1000) + os.time() * 1000,
+        timestamp = now_ms(),
         agent = "fireworks",
         plan = "Prepaid",
         quota = nil, -- Fireworks uses prepaid credits, not quota

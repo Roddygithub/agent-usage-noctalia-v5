@@ -5,6 +5,72 @@
 
 --!nonstrict
 
+local function now_ms()
+    return os.time() * 1000
+end
+
+-- Current OpenAI models (2025-2026) - from OpenAI docs
+local OPENAI_MODELS = {
+    -- GPT-5.6 series (latest)
+    "gpt-5.6-sol",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna",
+    -- GPT-5.5 series
+    "gpt-5.5",
+    "gpt-5.5-pro",
+    -- GPT-5.4 series
+    "gpt-5.4",
+    "gpt-5.4-pro",
+    "gpt-5.4-mini",
+    "gpt-5.4-nano",
+    -- GPT-5.3 series
+    "gpt-5.3-codex",
+    "gpt-5.3-codex-spark",
+    -- GPT-5.2 series
+    "gpt-5.2",
+    "gpt-5.2-codex",
+    -- GPT-5.1 series
+    "gpt-5.1",
+    "gpt-5.1-codex",
+    "gpt-5.1-codex-max",
+    "gpt-5.1-codex-mini",
+    -- GPT-5
+    "gpt-5",
+    "gpt-5-codex",
+    "gpt-5-nano",
+    -- GPT-4o series
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4o-2024-11-20",
+    "gpt-4o-2024-08-06",
+    "gpt-4o-2024-05-13",
+    -- GPT-4.5
+    "gpt-4.5-preview",
+    -- Specialized
+    "gpt-5.6-cyber",
+    "daybreak-red-latest",
+    "daybreak-blue-latest",
+    -- Realtime
+    "gpt-realtime-2.1",
+    "gpt-realtime-2.1-mini",
+    "gpt-realtime-2",
+    "gpt-realtime-translate",
+    "gpt-realtime-1.5",
+    -- Audio
+    "gpt-4o-mini-tts",
+    "gpt-transcribe",
+    "gpt-live-transcribe",
+    "gpt-realtime-whisper",
+    "gpt-4o-transcribe",
+    "gpt-4o-mini-transcribe",
+    -- Image
+    "gpt-image-2",
+    -- Legacy
+    "gpt-4-turbo",
+    "gpt-4",
+    "gpt-3.5-turbo",
+}
+
 local M = {
     name = "codex",
     default_config = {
@@ -147,7 +213,7 @@ function M.collect(config)
     -- Build snapshot
     local snapshot = {
         version = 1,
-        timestamp = math.floor(os.clock() * 1000) + os.time() * 1000,
+        timestamp = now_ms(),
         agent = "codex",
         plan = "Free", -- Codex doesn't expose plan in sessions
         quota = nil, -- Codex doesn't have quota limits in session files

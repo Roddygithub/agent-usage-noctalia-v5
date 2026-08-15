@@ -20,6 +20,7 @@ local function load_config()
         glyph_claude = noctalia.getConfig("glyph_claude") or "bot",
         glyph_codex = noctalia.getConfig("glyph_codex") or "terminal",
         glyph_fireworks = noctalia.getConfig("glyph_fireworks") or "flame",
+        glyph_openrouter = noctalia.getConfig("glyph_openrouter") or "route",
         hide_when_idle = noctalia.getConfig("hide_when_idle") or false,
     }
 end
@@ -33,6 +34,8 @@ local AGENT_GLYPHS = {
     claude = "glyph_claude",
     codex = "glyph_codex",
     fireworks = "glyph_fireworks",
+    ["opencode-zen"] = "glyph_opencode",
+    openrouter = "glyph_openrouter",
 }
 
 local AGENT_COLORS = {
@@ -40,6 +43,8 @@ local AGENT_COLORS = {
     claude = "purple",
     codex = "green",
     fireworks = "orange",
+    ["opencode-zen"] = "green",
+    openrouter = "cyan",
 }
 
 local AGENT_LABELS = {
@@ -47,6 +52,8 @@ local AGENT_LABELS = {
     claude = "Claude",
     codex = "Codex",
     fireworks = "Fireworks",
+    ["opencode-zen"] = "OpenCode Zen",
+    openrouter = "OpenRouter",
 }
 
 -- ─────────────────────────────────────────────────────────────────────────────

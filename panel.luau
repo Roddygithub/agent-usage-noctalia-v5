@@ -48,6 +48,8 @@ local function agent_color(agent)
         claude = "purple",
         codex = "green",
         fireworks = "orange",
+        ["opencode-zen"] = "green",
+        openrouter = "cyan",
     }
     return colors[agent] or "gray"
 end
@@ -58,6 +60,8 @@ local function agent_label(agent)
         claude = "Claude",
         codex = "Codex",
         fireworks = "Fireworks",
+        ["opencode-zen"] = "OpenCode Zen",
+        openrouter = "OpenRouter",
     }
     return labels[agent] or agent
 end
@@ -68,6 +72,8 @@ local function agent_glyph(agent)
         claude = "bot",
         codex = "terminal",
         fireworks = "flame",
+        ["opencode-zen"] = "sparkles",
+        openrouter = "route",
     }
     return glyphs[agent] or "code"
 end
@@ -230,7 +236,7 @@ local function render_limits(merged)
                         },
                         {
                             type = "text",
-                            text = "Reset: " .. (limit.reset_ms and (format_time(limit.reset_ms) .. " left") or "—"),
+                            text = "Reset: " .. (limit.reset_ms and (format_time_ms(limit.reset_ms) .. " left") or "—"),
                             size = "small",
                             color = "muted",
                         },
@@ -420,19 +426,35 @@ local function render_sync(merged)
     local sync_mode = "Off"
     local sync_dir = ""
     local last_sync = "—"
-    local devices = 0
+    local devices = {}
+    local device_count = 0
 
     -- Get sync config from service (would need to be published separately)
     -- For now, read from merged sync state if available
     if merged.sync then
         sync_mode = merged.sync.mode or "Off"
         sync_dir = merged.sync.dir or ""
-        last_sync = merged.sync.last_sync and format_time(merged.sync.last_sync) or "—"
-        devices = merged.sync.devices or 0
+        last_sync = merged.sync.last_sync and format_time_ms(merged.sync.last_sync) or "—"
+        devices = merged.sync.devices or {}
+        device_count = #devices
     end
 
     local status_text = sync_mode == "On" and "Activé" or "Désactivé"
     local status_color = sync_mode == "On" and "green" or "gray"
+
+    local device_items = {}
+    for _, dev in ipairs(devices) do
+        table.insert(device_items, {
+            type = "box",
+            orientation = "horizontal",
+            spacing = 8,
+            children = {
+                { type = "text", text = dev.id, weight = "bold", grow = true },
+                { type = "text", text = "Agent: " .. (dev.primary_agent or "—"), color = "muted" },
+                { type = "text", text = "Vu: " .. (dev.last_seen and format_time_ms(dev.last_seen) or "—"), color = "muted" },
+            }
+        })
+    end
 
     return {
         type = "box",
@@ -455,9 +477,19 @@ local function render_sync(merged)
                 spacing = 12,
                 children = {
                     { type = "text", text = "Dernière sync: " .. last_sync, color = "muted" },
-                    { type = "text", text = "Appareils: " .. devices, color = "muted" },
+                    { type = "text", text = "Appareils: " .. device_count, color = "muted" },
                 }
             },
+            device_count > 0 and {
+                type = "box",
+                orientation = "vertical",
+                spacing = 4,
+                margin_top = 8,
+                children = {
+                    { type = "text", text = "Appareils connectés:", weight = "bold", size = "small" },
+                    { type = "box", orientation = "vertical", spacing = 2, children = device_items },
+                }
+            } or { type = "text", text = "Aucun appareil connecté", color = "muted", margin_top = 8 },
             {
                 type = "box",
                 orientation = "horizontal",

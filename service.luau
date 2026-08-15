@@ -12,6 +12,11 @@ local STATE_KEY_SPEAKING = "agent_usage_speaking"
 local STATE_KEY_SYNC = "agent_usage_sync"
 local MAX_RETRIES = 3
 local BASE_RETRY_DELAY_MS = 1000
+local CACHE_FILE = "state_cache.json"
+
+local function now_ms()
+    return os.time() * 1000
+end
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Internal State
@@ -45,6 +50,76 @@ local function log_warn(msg)
 end
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- Persistence (pluginDataDir)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+local function get_cache_path()
+    local data_dir = noctalia.pluginDataDir()
+    if not data_dir or data_dir == "" then
+        return nil
+    end
+    return data_dir .. "/" .. CACHE_FILE
+end
+
+local function load_state_cache()
+    local path = get_cache_path()
+    if not path then return nil end
+
+    local content, err = noctalia.readFile(path)
+    if not content then
+        log("No cache file found: " .. tostring(err))
+        return nil
+    end
+
+    local ok, data = pcall(noctalia.json.decode, content)
+    if not ok then
+        log_warn("Failed to parse cache file: " .. tostring(data))
+        return nil
+    end
+
+    -- Validate cache structure
+    if not data.last_snapshot or not data.timestamp then
+        log_warn("Invalid cache structure")
+        return nil
+    end
+
+    -- Check cache age (max 24 hours)
+    local age_ms = now_ms() - (data.timestamp or 0)
+    if age_ms > 24 * 60 * 60 * 1000 then
+        log("Cache expired (" .. math.floor(age_ms / 1000 / 60) .. " min old)")
+        return nil
+    end
+
+    log("Loaded state cache (" .. math.floor(age_ms / 1000) .. "s old)")
+    return data
+end
+
+local function save_state_cache(merged_snapshot)
+    local path = get_cache_path()
+    if not path then return end
+
+    local cache_data = {
+        version = 1,
+        timestamp = now_ms(),
+        last_snapshot = merged_snapshot,
+        -- Could also save panel geometry, user prefs here
+    }
+
+    local ok, json_str = pcall(noctalia.json.encode, cache_data)
+    if not ok then
+        log_warn("Failed to encode cache: " .. tostring(json_str))
+        return
+    end
+
+    local write_ok, err = noctalia.writeFile(path, json_str)
+    if not write_ok then
+        log_warn("Failed to write cache: " .. tostring(err))
+    else
+        log("State cache saved")
+    end
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- Configuration Loading
 -- ─────────────────────────────────────────────────────────────────────────────
 
@@ -60,8 +135,8 @@ local function load_config()
 
     -- Parse enabled_agents (comma-separated string)
     local agents_str = noctalia.getConfig("enabled_agents") or "opencode,claude,codex,fireworks"
-    for agent in string.gmatch(agents_str, "([^,]+)") do
-        agent = string.gsub(agent, "^%s*(.-)%s*$", "%1") -- trim
+    for agent_raw in string.gmatch(agents_str, "([^,]+)") do
+        local agent = string.gsub(agent_raw, "^%s*(.-)%s*$", "%1") -- trim
         if agent ~= "" then
             table.insert(state.config.enabled_agents, agent)
         end
@@ -80,6 +155,26 @@ local function load_config()
         table.concat(state.config.enabled_agents, ","),
         state.config.sync_mode
     ))
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- OpenCode Zen Detection (free models via opencode.ai)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+local function detect_opencode_zen()
+    local auth_path = os.getenv("HOME") .. "/.local/share/opencode/auth.json"
+    local content, err = noctalia.readFile(auth_path)
+    if not content then
+        return false, nil
+    end
+    local ok, data = pcall(noctalia.json.decode, content)
+    if not ok or not data then
+        return false, nil
+    end
+    if data["opencode-zen"] then
+        return true, data["opencode-zen"]
+    end
+    return false, nil
 end
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -128,7 +223,7 @@ local function merge_snapshots(snapshots)
     -- Priority: speaking agent first, then by quota usage
     local merged = {
         version = 1,
-        timestamp = math.floor(os.clock() * 1000) + os.time() * 1000, -- approximate ms
+        timestamp = now_ms(),
         agents = {},
         primary_agent = nil,
         speaking = false,
@@ -193,7 +288,7 @@ end
 local function publish_error_state(message)
     local error_snapshot = {
         version = 1,
-        timestamp = math.floor(os.clock() * 1000) + os.time() * 1000,
+        timestamp = now_ms(),
         agents = {},
         primary_agent = nil,
         speaking = false,
@@ -263,9 +358,21 @@ local function run_collectors()
                         publish_error_state("All collectors failed: " .. table.concat(err_msgs, "; "))
                     else
                         publish_status(merged)
+                        -- Save state cache for persistence
+                        save_state_cache({ last_snapshot = merged, sync = noctalia.state.get(STATE_KEY_SYNC) })
                         -- Handle sync write if enabled
                         if state.config.sync_mode == "On" and state.config.sync_dir ~= "" then
                             write_sync_snapshot(merged)
+                        end
+                        -- Handle sync read/merge if enabled
+                        if state.config.sync_mode == "On" and state.config.sync_dir ~= "" then
+                            local sync_snapshots, err = read_sync_snapshots()
+                            if sync_snapshots and #sync_snapshots > 0 then
+                                local merged_sync = merge_sync_snapshots(sync_snapshots)
+                                if merged_sync then
+                                    publish_sync_status(merged_sync)
+                                end
+                            end
                         end
                     end
 
@@ -319,6 +426,195 @@ local function pulse_speaking(agent_name)
         noctalia.setTimeout(500, toggle)
     end
     toggle()
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Sync Read & Merge
+-- ─────────────────────────────────────────────────────────────────────────────
+
+local function read_sync_snapshots()
+    if state.config.sync_dir == "" then
+        return {}, "sync_dir not configured"
+    end
+
+    local files, err = noctalia.listDir(state.config.sync_dir)
+    if not files then
+        return {}, "Failed to list sync_dir: " .. tostring(err)
+    end
+
+    local snapshots = {}
+    for _, file in ipairs(files) do
+        if file:match("%.json$") then
+            local filepath = state.config.sync_dir .. "/" .. file
+            local content, err = noctalia.readFile(filepath)
+            if content then
+                local ok, data = pcall(noctalia.json.decode, content)
+                if ok and data and data.snapshot then
+                    -- Extract device_id from filename (without .json)
+                    local device_id = file:gsub("%.json$", "")
+                    data.snapshot.device_id = device_id
+                    data.snapshot.sync_timestamp = data.timestamp
+                    table.insert(snapshots, data.snapshot)
+                end
+            end
+        end
+    end
+
+    return snapshots, nil
+end
+
+local function merge_sync_snapshots(snapshots)
+    if #snapshots == 0 then
+        return nil
+    end
+
+    -- Start with the most recent snapshot as base
+    table.sort(snapshots, function(a, b)
+        return (a.timestamp or 0) > (b.timestamp or 0)
+    end)
+
+    local merged = {
+        version = 1,
+        timestamp = now_ms(),
+        agents = {},
+        primary_agent = nil,
+        speaking = false,
+        sync = {
+            mode = state.config.sync_mode,
+            dir = state.config.sync_dir,
+            devices = {},
+            last_sync = 0,
+            merged_from = #snapshots,
+        }
+    }
+
+    local latest_timestamp = 0
+
+    for _, snap in ipairs(snapshots) do
+        -- Track devices
+        if snap.device_id then
+            table.insert(merged.sync.devices, {
+                id = snap.device_id,
+                last_seen = snap.sync_timestamp or snap.timestamp,
+                primary_agent = snap.primary_agent,
+            })
+            if (snap.sync_timestamp or snap.timestamp) > latest_timestamp then
+                latest_timestamp = snap.sync_timestamp or snap.timestamp
+            end
+        end
+
+        -- Merge agents
+        for agent_name, agent_snap in pairs(snap.agents or {}) do
+            if not merged.agents[agent_name] then
+                merged.agents[agent_name] = agent_snap
+            else
+                -- Merge logic per agent
+                local existing = merged.agents[agent_name]
+
+                -- Tokens by day: union by date (not sum)
+                if agent_snap.tokens_daily and existing.tokens_daily then
+                    local day_map = {}
+                    for _, day in ipairs(existing.tokens_daily) do
+                        day_map[day.date] = day
+                    end
+                    for _, day in ipairs(agent_snap.tokens_daily) do
+                        if not day_map[day.date] then
+                            table.insert(existing.tokens_daily, day)
+                        elseif day.tokens > (day_map[day.date].tokens or 0) then
+                            day_map[day.date].tokens = day.tokens
+                        end
+                    end
+                elseif agent_snap.tokens_daily and not existing.tokens_daily then
+                    existing.tokens_daily = agent_snap.tokens_daily
+                end
+
+                -- Tokens by model: sum
+                if agent_snap.tokens_by_model and existing.tokens_by_model then
+                    for model, tokens in pairs(agent_snap.tokens_by_model) do
+                        existing.tokens_by_model[model] = (existing.tokens_by_model[model] or 0) + tokens
+                    end
+                elseif agent_snap.tokens_by_model and not existing.tokens_by_model then
+                    existing.tokens_by_model = agent_snap.tokens_by_model
+                end
+
+                -- Tokens by type: sum
+                if agent_snap.tokens_by_type and existing.tokens_by_type then
+                    for typ, tokens in pairs(agent_snap.tokens_by_type) do
+                        existing.tokens_by_type[typ] = (existing.tokens_by_type[typ] or 0) + tokens
+                    end
+                elseif agent_snap.tokens_by_type and not existing.tokens_by_type then
+                    existing.tokens_by_type = agent_snap.tokens_by_type
+                end
+
+                -- Quota/limits: take max (per account, not sum)
+                if agent_snap.quota and existing.quota then
+                    if (agent_snap.quota.limit or 0) > (existing.quota.limit or 0) then
+                        existing.quota = agent_snap.quota
+                    end
+                elseif agent_snap.quota and not existing.quota then
+                    existing.quota = agent_snap.quota
+                end
+
+                -- Limits: per account max, not sum
+                if agent_snap.limits and existing.limits then
+                    local limit_map = {}
+                    for _, l in ipairs(existing.limits) do
+                        limit_map[l.name] = l
+                    end
+                    for _, l in ipairs(agent_snap.limits) do
+                        if not limit_map[l.name] or (l.limit or 0) > (limit_map[l.name].limit or 0) then
+                            limit_map[l.name] = l
+                        end
+                    end
+                    -- Rebuild array
+                    existing.limits = {}
+                    for _, l in pairs(limit_map) do
+                        table.insert(existing.limits, l)
+                    end
+                elseif agent_snap.limits and not existing.limits then
+                    existing.limits = agent_snap.limits
+                end
+
+                -- Balance: if different accounts, don't merge (keep both separately)
+                -- For now, keep the one with higher funded amount if both exist
+                if agent_snap.balance and existing.balance then
+                    if (agent_snap.balance.credits or 0) > (existing.balance.credits or 0) then
+                        existing.balance = agent_snap.balance
+                    end
+                elseif agent_snap.balance and not existing.balance then
+                    existing.balance = agent_snap.balance
+                end
+
+                -- Speaking: true if any device is speaking
+                existing.speaking = existing.speaking or agent_snap.speaking
+            end
+        end
+    end
+
+    -- Determine primary agent from merged
+    for agent, snap in pairs(merged.agents) do
+        if snap.speaking then
+            merged.primary_agent = agent
+            merged.speaking = true
+            break
+        end
+    end
+    if not merged.primary_agent then
+        for agent, _ in pairs(merged.agents) do
+            merged.primary_agent = agent
+            break
+        end
+    end
+
+    merged.sync.last_sync = latest_timestamp
+
+    return merged
+end
+
+local function publish_sync_status(merged_sync)
+    if merged_sync then
+        noctalia.state.set(STATE_KEY_SYNC, merged_sync)
+    end
 end
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -378,7 +674,7 @@ local function on_ipc(payload)
         -- Force immediate sync write
         local merged = {
             version = 1,
-            timestamp = math.floor(os.clock() * 1000) + os.time() * 1000,
+            timestamp = now_ms(),
             agents = state.cache,
             primary_agent = nil,
             speaking = false,
@@ -404,6 +700,39 @@ local function on_ipc(payload)
 end
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- OpenCode Zen Status (free models, no API tracking available)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+local function add_opencode_zen_status()
+    local zen_snapshot = {
+        version = 1,
+        timestamp = now_ms(),
+        agent = "opencode-zen",
+        plan = "Free (OpenCode Zen)",
+        quota = nil,
+        balance = nil,
+        speaking = false,
+        tokens_today = 0,
+        tokens_by_model = {
+            ["DeepSeek V4 Flash Free"] = 0,
+            ["MiMo-V2.5 Free"] = 0,
+            ["Hy3 Free"] = 0,
+            ["Laguna S 2.1 Free"] = 0,
+            ["Nemotron 3 Ultra Free"] = 0,
+            ["Nemotron 3.5 Lightning Free"] = 0,
+        },
+        tokens_by_type = nil,
+        limits = {},
+        note = "Free models via opencode.ai/zen — no usage tracking available. Check dashboard at opencode.ai",
+    }
+    state.cache["opencode-zen"] = zen_snapshot
+    
+    -- Re-merge and publish
+    local merged = merge_snapshots(state.cache)
+    publish_status(merged)
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- Lifecycle: init / shutdown / update
 -- ─────────────────────────────────────────────────────────────────────────────
 
@@ -412,25 +741,70 @@ function init()
     load_config()
     load_collectors()
 
-    -- Initial waiting state
-    local initial_snapshot = {
-        version = 1,
-        timestamp = math.floor(os.clock() * 1000) + os.time() * 1000,
-        agents = {},
-        primary_agent = nil,
-        speaking = false,
-        message = "Initializing collectors...",
-    }
-    publish_status(initial_snapshot)
+    -- Detect OpenCode Zen (free models)
+    local zen_enabled, zen_config = detect_opencode_zen()
+    if zen_enabled then
+        log("OpenCode Zen detected: free models active")
+    end
+
+    -- Load cached state for immediate display
+    local cached = load_state_cache()
+    if cached and cached.last_snapshot then
+        log("Restoring cached state")
+        publish_status(cached.last_snapshot)
+        -- Also restore sync status if available
+        if cached.sync then
+            publish_sync_status(cached.sync)
+        end
+    else
+        -- Initial waiting state
+        local initial_snapshot = {
+            version = 1,
+            timestamp = now_ms(),
+            agents = {},
+            primary_agent = nil,
+            speaking = false,
+            message = "Initializing collectors...",
+        }
+        publish_status(initial_snapshot)
+    end
 
     -- Initial collect
     run_collectors()
+
+    -- Initial sync read if enabled
+    if state.config.sync_mode == "On" and state.config.sync_dir ~= "" then
+        local sync_snapshots, err = read_sync_snapshots()
+        if sync_snapshots and #sync_snapshots > 0 then
+            local merged_sync = merge_sync_snapshots(sync_snapshots)
+            if merged_sync then
+                publish_sync_status(merged_sync)
+            end
+        end
+    end
+
+    -- Add OpenCode Zen status after initial collect
+    if zen_enabled then
+        add_opencode_zen_status()
+    end
 
     log("Service started")
 end
 
 function shutdown()
     log("Service shutting down...")
+
+    -- Save state cache for next startup
+    local current_snapshot = noctalia.state.get(STATE_KEY_USAGE)
+    local current_sync = noctalia.state.get(STATE_KEY_SYNC)
+    if current_snapshot then
+        local cache_data = {
+            last_snapshot = current_snapshot,
+            sync = current_sync,
+        }
+        save_state_cache(cache_data)
+    end
+
     if state.poll_timer then
         noctalia.clearTimeout(state.poll_timer)
         state.poll_timer = nil
@@ -441,7 +815,7 @@ function shutdown()
     end
     publish_status({
         version = 1,
-        timestamp = math.floor(os.clock() * 1000) + os.time() * 1000,
+        timestamp = now_ms(),
         agents = {},
         primary_agent = nil,
         speaking = false,

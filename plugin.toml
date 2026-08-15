@@ -34,7 +34,7 @@ key = "enabled_agents"
 type = "string_list"
 label_key = "settings.enabled_agents.label"
 description_key = "settings.enabled_agents.description"
-default = "opencode,claude,codex,fireworks"
+default = "opencode,claude,codex,fireworks,opencode-zen,openrouter"
 advanced = false
 
 [[setting]]
@@ -114,6 +114,20 @@ type = "glyph"
 label_key = "settings.widget.glyph_fireworks.label"
 description_key = "settings.widget.glyph_fireworks.description"
 default = "flame"
+
+[[widget.setting]]
+key = "glyph_opencode_zen"
+type = "glyph"
+label_key = "settings.widget.glyph_opencode_zen.label"
+description_key = "settings.widget.glyph_opencode_zen.description"
+default = "sparkles"
+
+[[widget.setting]]
+key = "glyph_openrouter"
+type = "glyph"
+label_key = "settings.widget.glyph_openrouter.label"
+description_key = "settings.widget.glyph_openrouter.description"
+default = "route"
 
 [[widget.setting]]
 key = "hide_when_idle"

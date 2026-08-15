@@ -250,6 +250,34 @@ panel.render({
 - Rate limits = jamais mergés (par compte)
 - Tokens = somme par jour/modèle
 
+### 2.6.2 Sync Read & Merge Implementation (Nouveau)
+
+**Service Functions** :
+- `read_sync_snapshots()` : liste `sync_dir`, lit tous `*.json`, parse, valide structure
+- `merge_sync_snapshots(snapshots[])` : fusionne selon règles ci-dessus
+- `publish_sync_status(merged_sync)` : publie vers `noctalia.state.set("agent_usage_sync", ...)`
+
+**Merge Logic Détail** :
+```lua
+-- Pour chaque agent dans chaque snapshot device:
+-- 1. tokens_daily: union par date (garde max tokens si date existe déjà)
+-- 2. tokens_by_model: somme des tokens par modèle
+-- 3. tokens_by_type: somme input/output/cache
+-- 4. quota/limits: max par période (pas somme - rate limits per account)
+-- 5. balance: garde le plus haut funded amount (ne pas merger comptes différents)
+-- 5. speaking: true si n'importe quel device speaking
+
+-- devices[]: liste {id, last_seen, primary_agent} pour UI panel
+-- last_sync: max timestamp parmi tous devices
+```
+
+**Panel Sync UI** (`render_sync()`) :
+- Status badge (Activé/Désactivé)
+- Sync directory path
+- Last sync timestamp (format relatif)
+- Device count + liste devices (id, primary_agent, last_seen)
+- Buttons: "Forcer Sync" (ipc:force_sync), "Activer/Désactiver" (ipc:toggle_sync)
+
 ## 3. Flux de Données
 
 ### 3.1 Poll → État Partagé → UI

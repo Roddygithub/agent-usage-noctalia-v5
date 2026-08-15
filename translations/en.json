@@ -31,9 +31,21 @@
   "settings.widget.glyph_fireworks.label": "Fireworks Glyph",
   "settings.widget.glyph_fireworks.description": "Glyph for Fireworks agent",
 
+  "settings.widget.glyph_opencode_zen.label": "OpenCode Zen Glyph",
+  "settings.widget.glyph_opencode_zen.description": "Glyph for OpenCode Zen agent",
+
+  "settings.widget.glyph_openrouter.label": "OpenRouter Glyph",
+  "settings.widget.glyph_openrouter.description": "Glyph for OpenRouter agent",
+
   "settings.widget.hide_when_idle.label": "Hide When Idle",
   "settings.widget.hide_when_idle.description": "Hide widget when no agents are active",
 
   "keybinds.toggle_panel.label": "Toggle Agent Usage Panel",
-  "keybinds.force_refresh.label": "Force Refresh Agent Usage"
+  "keybinds.force_refresh.label": "Force Refresh Agent Usage",
+
+  "agent.opencode-zen.label": "OpenCode Zen",
+  "agent.opencode-zen.description": "Free models via opencode.ai/zen (DeepSeek V4 Flash Free, MiMo, Nemotron, etc.)",
+
+  "agent.openrouter.label": "OpenRouter",
+  "agent.openrouter.description": "Multi-provider gateway (DeepSeek, Qwen, Llama, etc.) — credits, usage, free models"
 }

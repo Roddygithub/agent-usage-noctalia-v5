@@ -17,6 +17,8 @@ local AGENT_LABELS = {
     claude = "Claude",
     codex = "Codex",
     fireworks = "Fireworks",
+    ["opencode-zen"] = "OpenCode Zen",
+    openrouter = "OpenRouter",
 }
 
 local AGENT_GLYPHS = {
@@ -24,6 +26,8 @@ local AGENT_GLYPHS = {
     claude = "bot",
     codex = "terminal",
     fireworks = "flame",
+    ["opencode-zen"] = "sparkles",
+    openrouter = "route",
 }
 
 -- ─────────────────────────────────────────────────────────────────────────────
