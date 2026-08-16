@@ -162,6 +162,7 @@ width = 520
 height = 580
 placement = "attached"
 position = "auto"
+open_near_click = true
 panel_dismiss_on_outside_click = true
 panel_keyboard_focus = "on_demand"
 

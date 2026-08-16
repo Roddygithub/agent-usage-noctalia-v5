@@ -66,14 +66,14 @@ end
 
 local function agent_glyph(agent)
     local glyphs = {
-        opencode = "code",
+        opencode = "terminal",
         claude = "bot",
-        codex = "terminal",
+        codex = "database",
         fireworks = "flame",
         ["opencode-zen"] = "sparkles",
         openrouter = "route",
     }
-    return glyphs[agent] or "code"
+    return glyphs[agent] or "terminal"
 end
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -110,7 +110,7 @@ local function render_hero(merged)
 
     return ui.column({ gap = 8, padding = 12, radius = 8, fill = "surface/0.5" }, {
         ui.row({ gap = 8, align = "center" }, {
-            ui.glyph({ name = snap and agent_glyph(primary) or "code", size = 20, color = "primary" }),
+            ui.glyph({ name = snap and agent_glyph(primary) or "terminal", size = 20, color = "primary" }),
             ui.label({ text = snap and agent_label(primary) or "No agent", fontSize = 16, fontWeight = "bold", color = "on_surface", flexGrow = 1 }),
             ui.label({ text = badge_text, fontSize = 11, fontWeight = "bold", color = badge_color }),
         }),
