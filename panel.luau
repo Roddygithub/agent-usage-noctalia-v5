@@ -153,7 +153,7 @@ local function render_limits(merged)
     end
 
     return ui.column({ gap = 8, padding = 8 }, {
-        ui.label({ text = "Limites", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
+        ui.label({ text = "Limits", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
         ui.column({ gap = 6, children = items }),
     })
 end
@@ -204,7 +204,7 @@ local function render_tokens_daily(merged)
     end
 
     return ui.column({ gap = 8, padding = 8 }, {
-        ui.label({ text = "Tokens / Jour (7j)", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
+        ui.label({ text = "Tokens / Day (7d)", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
         ui.column({ gap = 4, children = items }),
     })
 end
@@ -244,7 +244,7 @@ local function render_tokens_by_model(merged)
     end
 
     return ui.column({ gap = 8, padding = 8 }, {
-        ui.label({ text = "Tokens / Modèle", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
+        ui.label({ text = "Tokens / Model", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
         ui.label({ text = "Total: " .. format_tokens(total), fontSize = 11, color = "on_surface_variant" }),
         ui.column({ gap = 8, children = items }),
     })
@@ -265,7 +265,7 @@ local function render_sync(merged)
         device_count = #devices
     end
 
-    local status_text = sync_mode == "On" and "Activé" or "Désactivé"
+    local status_text = sync_mode == "On" and "Enabled" or "Disabled"
     local status_color = sync_mode == "On" and "success" or "on_surface_variant"
 
     local children = {
@@ -275,8 +275,8 @@ local function render_sync(merged)
             ui.label({ text = "Dossier: " .. (sync_dir ~= "" and sync_dir or "—"), fontSize = 11, color = "on_surface_variant", flexGrow = 1 }),
         }),
         ui.row({ gap = 12 }, {
-            ui.label({ text = "Dernière sync: " .. last_sync, fontSize = 11, color = "on_surface_variant" }),
-            ui.label({ text = "Appareils: " .. device_count, fontSize = 11, color = "on_surface_variant" }),
+            ui.label({ text = "Last sync: " .. last_sync, fontSize = 11, color = "on_surface_variant" }),
+            ui.label({ text = "Devices: " .. device_count, fontSize = 11, color = "on_surface_variant" }),
         }),
     }
 
@@ -291,11 +291,11 @@ local function render_sync(merged)
 
     if device_count > 0 then
         table.insert(children, ui.column({ gap = 4 }, {
-            ui.label({ text = "Appareils connectés:", fontSize = 11, fontWeight = "bold", color = "on_surface" }),
+            ui.label({ text = "Connected devices:", fontSize = 11, fontWeight = "bold", color = "on_surface" }),
             ui.column({ gap = 2, children = device_items }),
         }))
     else
-        table.insert(children, ui.label({ text = "Aucun appareil connecté", fontSize = 11, color = "on_surface_variant" }))
+        table.insert(children, ui.label({ text = "No devices connected", fontSize = 11, color = "on_surface_variant" }))
     end
 
     return ui.column({ gap = 8, padding = 8 }, children)
