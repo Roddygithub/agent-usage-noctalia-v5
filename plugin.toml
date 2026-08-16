@@ -144,8 +144,8 @@ id = "detail"
 entry = "panel.luau"
 width = 520
 height = 580
-placement = "floating"
-position = "center"
+placement = "widget"
+anchor_widget = "roddygithub/agent-usage:status"
 panel_dismiss_on_outside_click = true
 panel_keyboard_focus = "on_demand"
 
