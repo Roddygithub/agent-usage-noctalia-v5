@@ -104,7 +104,7 @@ key = "glyph_opencode"
 type = "glyph"
 label_key = "settings.widget.glyph_opencode.label"
 description_key = "settings.widget.glyph_opencode.description"
-default = "code"
+default = "terminal"
 
 [[widget.setting]]
 key = "glyph_claude"
@@ -118,7 +118,7 @@ key = "glyph_codex"
 type = "glyph"
 label_key = "settings.widget.glyph_codex.label"
 description_key = "settings.widget.glyph_codex.description"
-default = "terminal"
+default = "database"
 
 [[widget.setting]]
 key = "glyph_fireworks"

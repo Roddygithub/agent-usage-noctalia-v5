@@ -16,11 +16,12 @@ local config = {}
 
 local function load_config()
     config = {
-        glyph_opencode = noctalia.getConfig("glyph_opencode") or "code",
+        glyph_opencode = noctalia.getConfig("glyph_opencode") or "terminal",
         glyph_claude = noctalia.getConfig("glyph_claude") or "bot",
-        glyph_codex = noctalia.getConfig("glyph_codex") or "terminal",
+        glyph_codex = noctalia.getConfig("glyph_codex") or "database",
         glyph_fireworks = noctalia.getConfig("glyph_fireworks") or "flame",
         glyph_openrouter = noctalia.getConfig("glyph_openrouter") or "route",
+        glyph_opencode_zen = noctalia.getConfig("glyph_opencode_zen") or "sparkles",
         hide_when_idle = noctalia.getConfig("hide_when_idle") or false,
     }
 end
@@ -45,7 +46,7 @@ local AGENT_GLYPHS = {
     claude = "glyph_claude",
     codex = "glyph_codex",
     fireworks = "glyph_fireworks",
-    ["opencode-zen"] = "glyph_opencode",
+    ["opencode-zen"] = "glyph_opencode_zen",
     openrouter = "glyph_openrouter",
 }
 

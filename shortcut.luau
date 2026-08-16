@@ -22,9 +22,9 @@ local AGENT_LABELS = {
 }
 
 local AGENT_GLYPHS = {
-    opencode = "code",
+    opencode = "terminal",
     claude = "bot",
-    codex = "terminal",
+    codex = "database",
     fireworks = "flame",
     ["opencode-zen"] = "sparkles",
     openrouter = "route",
