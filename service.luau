@@ -422,11 +422,23 @@ local function run_collectors()
                 if pending == 0 then
                     -- All collectors done, merge and publish
                     local merged = merge_snapshots(results)
+                    
+                    -- Preserve previous state if merge empty but we had valid agents before
+                    local prev_state = noctalia.state.get(STATE_KEY_USAGE)
+                    local has_prev_agents = prev_state and prev_state.agents and next(prev_state.agents) ~= nil
+                    
                     if next(merged.agents) == nil and next(errors) ~= nil then
-                        -- All failed
-                        local err_msgs = {}
-                        for a, e in pairs(errors) do table.insert(err_msgs, a .. ": " .. tostring(e)) end
-                        publish_error_state("All collectors failed: " .. table.concat(err_msgs, "; "))
+                        -- All failed: if we have previous valid state, keep it
+                        if has_prev_agents then
+                            log("All collectors failed, keeping previous valid state")
+                        else
+                            local err_msgs = {}
+                            for a, e in pairs(errors) do table.insert(err_msgs, a .. ": " .. tostring(e)) end
+                            publish_error_state("All collectors failed: " .. table.concat(err_msgs, "; "))
+                        end
+                    elseif next(merged.agents) == nil and has_prev_agents then
+                        -- Merge empty but had previous state: keep previous
+                        log("Merge empty but had previous state, keeping previous")
                     else
                         publish_status(merged)
                         -- Save state cache for persistence
