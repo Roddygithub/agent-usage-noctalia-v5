@@ -73,6 +73,18 @@ description_key = "settings.show_speaking_indicator.description"
 default = true
 advanced = false
 
+[[setting]]
+key = "panel_placement"
+type = "select"
+label_key = "settings.panel_placement.label"
+description_key = "settings.panel_placement.description"
+default = "attached"
+options = [
+  { value = "attached", label_key = "settings.panel_placement.attached" },
+  { value = "floating", label_key = "settings.panel_placement.floating" },
+  { value = "widget", label_key = "settings.panel_placement.widget" },
+]
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Service: Headless background collector (singleton)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -139,13 +151,38 @@ default = false
 # ─────────────────────────────────────────────────────────────────────────────
 # Panel: Detailed view with limits, balance, tokens charts, sync status
 # ─────────────────────────────────────────────────────────────────────────────
+# Three panel variants selected by panel_placement setting:
+# - attached: dropdown attached to widget (placement="attached", position="auto")
+# - floating: centered floating window (placement="floating", position="center")
+# - widget: floating near widget click (placement="floating", position="auto", open_near_click=true)
 [[panel]]
-id = "detail"
+id = "detail_attached"
 entry = "panel.luau"
 width = 520
 height = 580
-placement = "widget"
-anchor_widget = "roddygithub/agent-usage:status"
+placement = "attached"
+position = "auto"
+panel_dismiss_on_outside_click = true
+panel_keyboard_focus = "on_demand"
+
+[[panel]]
+id = "detail_floating"
+entry = "panel.luau"
+width = 520
+height = 580
+placement = "floating"
+position = "center"
+panel_dismiss_on_outside_click = true
+panel_keyboard_focus = "on_demand"
+
+[[panel]]
+id = "detail_widget"
+entry = "panel.luau"
+width = 520
+height = 580
+placement = "floating"
+position = "auto"
+open_near_click = true
 panel_dismiss_on_outside_click = true
 panel_keyboard_focus = "on_demand"
 

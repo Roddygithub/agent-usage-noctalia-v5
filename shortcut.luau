@@ -30,6 +30,17 @@ local AGENT_GLYPHS = {
     openrouter = "route",
 }
 
+-- Panel ID based on panel_placement setting (like Phone Connect)
+local function panelId()
+    local mode = noctalia.getConfig("panel_placement")
+    if mode == "floating" then
+        return "roddygithub/agent-usage:detail_floating"
+    elseif mode == "widget" then
+        return "roddygithub/agent-usage:detail_widget"
+    end
+    return "roddygithub/agent-usage:detail_attached"
+end
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Rendering
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -68,8 +79,8 @@ end
 -- ─────────────────────────────────────────────────────────────────────────────
 
 function onClick()
-    -- Toggle panel
-    noctalia.togglePanel("roddygithub/agent-usage:detail")
+    -- Toggle panel based on panel_placement setting
+    noctalia.togglePanel(panelId())
 end
 
 -- ─────────────────────────────────────────────────────────────────────────────

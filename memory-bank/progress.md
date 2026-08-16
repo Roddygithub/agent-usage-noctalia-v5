@@ -197,6 +197,13 @@
 - ✅ Release **v1.0.4** publiée : quota réel, runAsync fix, panel honnête
 - 🔜 **Widget affiche 100%** (limit atteint, plan Plus, fenêtre hebdo, reset dans ~4j)
 
+### 2026-08-16 — Cache Restore & Widget Startup Fix (v1.0.5)
+- ✅ **Cache restore au démarrage** : `load_state_cache()` + `publish_status()` dans `onInit` — le widget affiche le quota mis en cache **immédiatement** (plus de "No Agents" transitoire)
+- ✅ **Bug cache corrigé** : `save_state_cache` gérait mal le wrapper `{last_snapshot, sync}` → structure imbriquée cassée au rechargement
+- ✅ **Widget message** : affiche `snapshot.message` ("Initializing...") au lieu de "No agents" quand état vide
+- ✅ **Cache TTL** : 24h → 7 jours (survit reboots/arrêts longs)
+- ✅ Release **v1.0.5** publiée
+
 ---
 
 ### 2026-08-16 — Test Visuel Noctalia + Correctifs Sandbox
