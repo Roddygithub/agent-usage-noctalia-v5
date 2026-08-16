@@ -108,7 +108,7 @@ local function render_hero(merged)
     local quota_text = snap and snap.quota and format_quota(snap.quota) or "—"
     local auth_status = merged.error and ("Error: " .. merged.error) or "Connected"
 
-    return ui.column({ gap = 10 }, {
+    return ui.column({ gap = 8, padding = 12, radius = 8, fill = "surface/0.5" }, {
         ui.row({ gap = 8, align = "center" }, {
             ui.glyph({ name = snap and agent_glyph(primary) or "code", size = 20, color = "primary" }),
             ui.label({ text = snap and agent_label(primary) or "No agent", fontSize = 16, fontWeight = "bold", color = "on_surface", flexGrow = 1 }),
@@ -152,7 +152,7 @@ local function render_limits(merged)
         }))
     end
 
-    return ui.column({ gap = 8 }, {
+    return ui.column({ gap = 8, padding = 8 }, {
         ui.label({ text = "Limites", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
         ui.column({ gap = 6, children = items }),
     })
@@ -172,7 +172,7 @@ local function render_balance(merged)
     local color = "success"
     if ratio < 0.2 then color = "error" elseif ratio < 0.5 then color = "warning" end
 
-    return ui.column({ gap = 8 }, {
+    return ui.column({ gap = 8, padding = 8 }, {
         ui.label({ text = "Balance", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
         ui.column({ gap = 6, fill = "surface/0.5", radius = 8, padding = 8 }, {
             ui.row({ gap = 8, align = "center" }, {
@@ -203,7 +203,7 @@ local function render_tokens_daily(merged)
         }))
     end
 
-    return ui.column({ gap = 8 }, {
+    return ui.column({ gap = 8, padding = 8 }, {
         ui.label({ text = "Tokens / Jour (7j)", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
         ui.column({ gap = 4, children = items }),
     })
@@ -243,7 +243,7 @@ local function render_tokens_by_model(merged)
         }))
     end
 
-    return ui.column({ gap = 8 }, {
+    return ui.column({ gap = 8, padding = 8 }, {
         ui.label({ text = "Tokens / Modèle", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
         ui.label({ text = "Total: " .. format_tokens(total), fontSize = 11, color = "on_surface_variant" }),
         ui.column({ gap = 8, children = items }),
@@ -298,22 +298,24 @@ local function render_sync(merged)
         table.insert(children, ui.label({ text = "Aucun appareil connecté", fontSize = 11, color = "on_surface_variant" }))
     end
 
-    return ui.column({ gap = 8 }, children)
+    return ui.column({ gap = 8, padding = 8 }, children)
 end
 
 local function render_full_panel(merged)
-    return ui.scroll({ flexGrow = 1, gap = 14 }, {
-        render_hero(merged),
-        ui.separator({}),
-        render_limits(merged),
-        ui.separator({}),
-        render_balance(merged),
-        ui.separator({}),
-        render_tokens_daily(merged),
-        ui.separator({}),
-        render_tokens_by_model(merged),
-        ui.separator({}),
-        render_sync(merged),
+    return ui.scroll({ flexGrow = 1, gap = 14, padding = 16 }, {
+        ui.column({ gap = 14, radius = 12, fill = "surface/0.8", border = "on_surface/0.1", borderWidth = 1, padding = 8 }, {
+            render_hero(merged),
+            ui.separator({}),
+            render_limits(merged),
+            ui.separator({}),
+            render_balance(merged),
+            ui.separator({}),
+            render_tokens_daily(merged),
+            ui.separator({}),
+            render_tokens_by_model(merged),
+            ui.separator({}),
+            render_sync(merged),
+        }),
     })
 end
 
