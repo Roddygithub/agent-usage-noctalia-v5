@@ -10,11 +10,24 @@
 | **P3 - Collectors Restants + Sync** | ✅ Terminé | 100% | J+11 | J+14 | OpenRouter, OpenCode Zen, Sync read/write/merge complete |
 | **P4 - Polish, Tests, Release** | ✅ Terminé | 100% | J+14 | J+17 | Persistence, graceful handling, degraded mode, CI/CD release, docs, **v1.0.0 released** |
 
-**Progression Globale** : 100% (Implementation complete, v1.0.0 released)
+**Progression Globale** : 100% (Implementation complete, v1.0.2 released)
 
 ---
 
 ## Journal de Bord
+
+### 2026-08-16 — Test Visuel Noctalia + Correctifs Sandbox
+- ✅ Correctifs sandbox Noctalia : `require` relatif `.luau`, `os.getenv` nil → `home_dir()`, `runAsync(string)` (pas `runCommand`), forward references Luau
+- ✅ Collectors renommés `.lua` → `.luau`, opencode-zen skippé nativement
+- ✅ Widget barre reconnu après redémarrage daemon (registre scanné au démarrage) : `type = "roddygithub/agent-usage:status"` fonctionne
+- ✅ **Polling périodique corrigé** : `update()` était vide → `noctalia.setUpdateInterval()` + `run_collectors()` ; `onConfigChanged()` ajouté
+- ✅ **Panel crash corrigé** : `tokens_by_model` avec valeurs objets → normalisation en nombres dans opencode collector (fix `arithmetic on number and table`)
+- ✅ **Cache robuste** : `publish_status` + `load_state_cache` gardés contre `agents` nil
+- ✅ **openrouter async** : `collect_async` via `noctalia.runAsync` (commande string + callback)
+- ✅ Settings plugin stockés dans `[plugin_settings."roddygithub/agent-usage"]` (settings.toml) — `refresh_interval_sec = 60` pour test
+- ✅ 22 tests unitaires passent (10 collectors + 12 openrouter), CI vert
+- ✅ Release **v1.0.2** publiée : polling scheduled, async openrouter, normalisation opencode
+- ✅ Test visuel : widget rend + se met à jour dynamiquement (zone x600-900 change à chaque tick), panel s'ouvre avec données (opencode 84%)
 
 ### 2026-08-15 — Initialisation & Architecture Complète
 - ✅ Repository structure créée
@@ -172,4 +185,4 @@
 
 ---
 
-*Dernière MAJ : 2026-08-15 — Core P0-P2 complet (90-95%), bugs corrigés, prêt pour P3 Sync read + P4 Release*
+*Dernière MAJ : 2026-08-16 — Test visuel validé (widget barre + panel), polling périodique, v1.0.2 released*
