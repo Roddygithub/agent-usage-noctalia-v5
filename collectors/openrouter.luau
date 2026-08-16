@@ -43,11 +43,12 @@ local function fetch_openrouter_usage(api_key, callback)
     local cmd = "curl -s -H \"Authorization: Bearer " .. api_key
         .. "\" -H \"Accept: application/json\" https://openrouter.ai/api/v1/auth/key"
     noctalia.runAsync(cmd, function(result)
-        if not result or result.code ~= 0 then
-            callback(nil, "curl failed: " .. tostring(result and result.stderr or "unknown"))
+        if not result then
+            callback(nil, "runAsync returned nil")
             return
         end
-        local ok, data = pcall(noctalia.json.decode, result.stdout)
+        local stdout = result.stdout or ""
+        local ok, data = pcall(noctalia.json.decode, stdout)
         if not ok then callback(nil, "JSON parse error: " .. tostring(data)) return end
         callback(data, nil)
     end)
@@ -58,11 +59,12 @@ local function fetch_openrouter_models(api_key, callback)
     local cmd = "curl -s -H \"Authorization: Bearer " .. api_key
         .. "\" -H \"Accept: application/json\" https://openrouter.ai/api/v1/models"
     noctalia.runAsync(cmd, function(result)
-        if not result or result.code ~= 0 then
-            callback(nil, "curl failed: " .. tostring(result and result.stderr or "unknown"))
+        if not result then
+            callback(nil, "runAsync returned nil")
             return
         end
-        local ok, data = pcall(noctalia.json.decode, result.stdout)
+        local stdout = result.stdout or ""
+        local ok, data = pcall(noctalia.json.decode, stdout)
         if not ok then callback(nil, "JSON parse error: " .. tostring(data)) return end
         callback(data, nil)
     end)

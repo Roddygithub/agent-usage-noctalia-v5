@@ -190,6 +190,28 @@ local function test_opencode_collector()
     assert_equal(snap.quota.limit, 50000, "quota limit parsed")
 end
 
+local function test_opencode_collect_async_fallback()
+    local ok, collector = pcall(require, "collectors.opencode")
+    if not ok then
+        print("⚠ opencode collector not loadable")
+        return
+    end
+    assert_equal(type(collector.collect_async), "function", "opencode must have collect_async")
+
+    -- In the test mock, auth.json is missing, so collect_async must fall back
+    -- to the local usage.json path and still deliver a snapshot.
+    local snap, err
+    local done = false
+    collector.collect_async(nil, function(s, e)
+        snap, err = s, e
+        done = true
+    end)
+    assert_equal(done, true, "collect_async callback invoked")
+    assert_equal(snap ~= nil, true, "collect_async fallback returns snapshot: " .. tostring(err))
+    assert_equal(snap.note ~= nil, true, "fallback snapshot carries a note")
+    assert_equal(snap.quota.used, 18300, "fallback uses local quota data")
+end
+
 local function test_claude_collector()
     local ok, collector = pcall(require, "collectors.claude")
     if not ok then
@@ -292,6 +314,7 @@ local tests = {
     { "Protocol: JSON Lines format", test_json_lines },
     { "Collectors: Contract compliance", test_collector_contract },
     { "Collector: opencode", test_opencode_collector },
+    { "Collector: opencode async fallback", test_opencode_collect_async_fallback },
     { "Collector: claude", test_claude_collector },
     { "Collector: codex", test_codex_collector },
     { "Collector: fireworks", test_fireworks_collector },

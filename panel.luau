@@ -13,7 +13,11 @@ local STATE_KEY_SYNC = "agent_usage_sync"
 -- ─────────────────────────────────────────────────────────────────────────────
 
 local function format_quota(quota)
-    if not quota or not quota.limit or quota.limit == 0 then
+    if not quota then return "—" end
+    if quota.percent ~= nil then
+        return string.format("%d%%", quota.percent)
+    end
+    if not quota.limit or quota.limit == 0 then
         return quota.used .. " / ∞"
     end
     local pct = math.floor((quota.used / quota.limit) * 100)
