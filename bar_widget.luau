@@ -90,10 +90,18 @@ local function format_time_ms(ms)
     if not ms or ms == 0 then return "—" end
     local diff = math.floor(ms / 1000) - os.time()
     if diff <= 0 then return "now" end
-    if diff < 60 then return diff .. "s" end
-    if diff < 3600 then return math.floor(diff / 60) .. "m" end
-    if diff < 86400 then return math.floor(diff / 3600) .. "h" end
-    return math.floor(diff / 86400) .. "d"
+    local days = math.floor(diff / 86400)
+    local hours = math.floor((diff % 86400) / 3600)
+    local mins = math.floor((diff % 3600) / 60)
+    if days > 0 then
+        return string.format("%dd %dh", days, hours)
+    elseif hours > 0 then
+        return string.format("%dh %dm", hours, mins)
+    elseif mins > 0 then
+        return string.format("%dm", mins)
+    else
+        return diff .. "s"
+    end
 end
 
 local function get_agent_color(agent, speaking)
