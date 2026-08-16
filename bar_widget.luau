@@ -65,7 +65,7 @@ local function format_quota(quota)
         return quota.used .. " / ∞"
     end
     local pct = math.floor((quota.used / quota.limit) * 100)
-    return string.format("%d%% (%d/%d)", pct, quota.used, quota.limit)
+    return string.format("%d%%", pct)
 end
 
 local function format_balance(balance)
