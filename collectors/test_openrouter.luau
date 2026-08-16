@@ -6,6 +6,9 @@
 
 --!nonstrict
 
+-- Collectors are .luau files; make require find them in standard Lua
+package.path = "./?.luau;" .. package.path
+
 local function run_test(name, fn)
     local ok, err = pcall(fn)
     if ok then

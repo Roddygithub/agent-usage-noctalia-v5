@@ -133,14 +133,26 @@ local function load_config()
         show_speaking_indicator = noctalia.getConfig("show_speaking_indicator") ~= false,
     }
 
-    -- Parse enabled_agents (comma-separated string)
-    local agents_str = noctalia.getConfig("enabled_agents") or "opencode,claude,codex,fireworks"
-    for agent_raw in string.gmatch(agents_str, "([^,]+)") do
-        local agent = string.gsub(agent_raw, "^%s*(.-)%s*$", "%1") -- trim
-        if agent ~= "" then
-            table.insert(state.config.enabled_agents, agent)
+    -- Parse enabled_agents (comma-separated string or string_list)
+    local agents_config = noctalia.getConfig("enabled_agents")
+    local agents_list = {}
+    if type(agents_config) == "string" and agents_config ~= "" then
+        -- Old format: comma-separated string
+        for agent_raw in string.gmatch(agents_config, "([^,]+)") do
+            local agent = string.gsub(agent_raw, "^%s*(.-)%s*$", "%1") -- trim
+            if agent ~= "" then table.insert(agents_list, agent) end
         end
+    elseif type(agents_config) == "table" and next(agents_config) ~= nil then
+        -- New format: string_list (table of strings)
+        for _, agent in ipairs(agents_config) do
+            local trimmed = string.gsub(agent, "^%s*(.-)%s*$", "%1")
+            if trimmed ~= "" then table.insert(agents_list, trimmed) end
+        end
+    else
+        -- Fallback to defaults
+        agents_list = {"opencode", "claude", "codex", "fireworks", "opencode-zen", "openrouter"}
     end
+    state.config.enabled_agents = agents_list
 
     -- Load per-agent configs
     for _, agent in ipairs(state.config.enabled_agents) do
@@ -162,7 +174,19 @@ end
 -- ─────────────────────────────────────────────────────────────────────────────
 
 local function detect_opencode_zen()
-    local auth_path = os.getenv("HOME") .. "/.local/share/opencode/auth.json"
+    -- Get HOME directory safely (os.getenv may not be available in sandbox)
+    local home = os.getenv and os.getenv("HOME")
+    if not home then
+        -- Fallback: try to get from environment or use a default
+        home = "/home/" .. (os.getenv and os.getenv("USER") or "roddy")
+    end
+    if not home or home == "" then
+        return false, nil
+    end
+    local auth_path = home .. "/.local/share/opencode/auth.json"
+    if not noctalia.readFile then
+        return false, nil
+    end
     local content, err = noctalia.readFile(auth_path)
     if not content then
         return false, nil
@@ -184,27 +208,34 @@ end
 local function load_collectors()
     state.collectors = {}
     for _, agent_name in ipairs(state.config.enabled_agents) do
-        local ok, collector = pcall(require, "collectors." .. agent_name)
-        if not ok then
-            log_warn("Failed to load collector '" .. agent_name .. "': " .. tostring(collector))
-        elseif type(collector) ~= "table" then
-            log_warn("Collector '" .. agent_name .. "' did not return a table")
-        elseif not collector.name or not collector.collect then
-            log_warn("Collector '" .. agent_name .. "' missing required fields (name, collect)")
+        -- opencode-zen is handled natively (no collector module)
+        if agent_name == "opencode-zen" then
+            log("opencode-zen handled natively, skipping collector load")
         else
-            -- Validate config if validator exists
-            local cfg = state.collector_configs[agent_name] or collector.default_config or {}
-            if collector.validate_config then
-                local valid, err = collector.validate_config(cfg)
-                if not valid then
-                    log_warn("Collector '" .. agent_name .. "' config invalid: " .. tostring(err))
+            -- Require path must be relative (starting with ./) and end in .luau
+            local require_path = "./collectors/" .. agent_name .. ".luau"
+            local ok, collector = pcall(require, require_path)
+            if not ok then
+                log_warn("Failed to load collector '" .. agent_name .. "': " .. tostring(collector))
+            elseif type(collector) ~= "table" then
+                log_warn("Collector '" .. agent_name .. "' did not return a table")
+            elseif not collector.name or not collector.collect then
+                log_warn("Collector '" .. agent_name .. "' missing required fields (name, collect)")
+            else
+                -- Validate config if validator exists
+                local cfg = state.collector_configs[agent_name] or collector.default_config or {}
+                if collector.validate_config then
+                    local valid, err = collector.validate_config(cfg)
+                    if not valid then
+                        log_warn("Collector '" .. agent_name .. "' config invalid: " .. tostring(err))
+                    else
+                        state.collectors[agent_name] = collector
+                        log("Loaded collector: " .. agent_name)
+                    end
                 else
                     state.collectors[agent_name] = collector
                     log("Loaded collector: " .. agent_name)
                 end
-            else
-                state.collectors[agent_name] = collector
-                log("Loaded collector: " .. agent_name)
             end
         end
     end

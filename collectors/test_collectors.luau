@@ -5,6 +5,9 @@
 
 --!nonstrict
 
+-- Collectors are .luau files; make require find them in standard Lua
+package.path = "./?.luau;" .. package.path
+
 -- Use downloaded dkjson.lua
 local json = require("dkjson")
 noctalia = {

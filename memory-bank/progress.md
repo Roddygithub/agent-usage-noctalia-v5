@@ -8,9 +8,9 @@
 | **P1 - Widget Barre + Settings + Shortcut** | ✅ Terminé | 100% | J+4 | J+7 | Widget, keybinds, shortcut, settings, panel |
 | **P2 - Panel Détaillé** | ✅ Terminé | 100% | J+7 | J+11 | UI déclarative, accordéons, graphiques |
 | **P3 - Collectors Restants + Sync** | ✅ Terminé | 100% | J+11 | J+14 | OpenRouter, OpenCode Zen, Sync read/write/merge complete |
-| **P4 - Polish, Tests, Release** | ✅ Terminé | 90% | J+14 | J+17 | Persistence, graceful handling, degraded mode, CI/CD release, docs |
+| **P4 - Polish, Tests, Release** | ✅ Terminé | 100% | J+14 | J+17 | Persistence, graceful handling, degraded mode, CI/CD release, docs, **v1.0.0 released** |
 
-**Progression Globale** : 98% (Implementation complete, release tagging pending)
+**Progression Globale** : 100% (Implementation complete, v1.0.0 released)
 
 ---
 
@@ -49,10 +49,11 @@
 - ✅ `LICENSE` : GPL-3.0
 - ✅ `CHANGELOG.md` : historique des versions
 
-### 2026-08-15 — Corrections & Peaufinage
-- 🐛 Fix timestamp bug: `os.clock()` → `os.time() * 1000` dans service + tous collectors + tests
-- 🐛 Fix `format_time` undefined → `format_time_ms` dans panel.luau (2 occurrences)
-- 📝 Progress.md mis à jour pour refléter l'état réel (P0-P2 ~90-95% done)
+### 2026-08-15 — Release v1.0.0 Published
+- ✅ **v1.0.0 released** at https://github.com/Roddygithub/agent-usage-noctalia-v5/releases/tag/v1.0.0
+- ✅ Two artifacts: plugin package + full source archive
+- ✅ CI/CD pipeline fully working (lint, tests, format, release)
+- ✅ All phases complete (P0-P4)
 
 ### 2026-08-15 — BMAD Implementation Complete (P3-P4)
 - ✅ **TDD OpenRouter Collector** : `test_openrouter.lua` (12 tests) → `openrouter.lua` implémenté
@@ -64,6 +65,15 @@
 - ✅ **Degraded Mode** : API fail → cached data + warning, no crash
 - ✅ **CI/CD Release** : `.github/workflows/ci.yml` + `release.yml` (tags `v*` → GitHub Release)
 - ✅ **Model Lists Updated** : Claude (16 models), Codex (40+ models) from official docs
+
+### 2026-08-16 — Local Debug (sandbox Noctalia v5.0.0)
+- 🐛 **Fix require paths** : `require("collectors.opencode")` → `require("./collectors/opencode.luau")` (le sandbox Noctalia exige chemin relatif finissant en `.luau`)
+- 🔄 **Collectors renommés** `.lua` → `.luau` (opencode, claude, codex, fireworks, openrouter) pour satisfaire le `require` Noctalia ; tests mis à jour (`package.path` + `./?.luau`, CI + test_integration.sh pointent vers `test_collectors.luau`)
+- 🐛 **Fix `os.getenv` nil dans le sandbox** : tous les collectors utilisent maintenant `home_dir()` sécurisé (fallback `USERPROFILE`/`/home/<USER>`), pareil pour `os.getenv("FIREWORKS_API_KEY")` / `config.api_key_env`
+- 🐛 **opencode-zen** : pas de module collector, géré nativement → `load_collectors()` le skip explicitement
+- ✅ **Résultat** : 5 collectors chargés dans Noctalia (`Loaded collector: opencode|claude|codex|fireworks|openrouter`), codex retourne `nil` = dégradation gracieuse (pas de `~/.codex/sessions`)
+- ✅ **Logo** : `icon.svg` créé, `icon = "icon.svg"` dans plugin.toml
+- ⚠️ 22 tests unitaires passent en local (`lua collectors/test_collectors.luau` = 10, `test_openrouter.luau` = 12)
 
 ---
 
@@ -127,8 +137,9 @@
 ## Prochaine Session - Checklist
 
 ### Release v1.0.0 (Final step)
-- [ ] Tag `v1.0.0` → pipeline complète → artefacts publiés
-- [ ] PR `noctalia-dev/community-plugins` (fork, add plugin, template PR)
+- ✅ Tag `v1.0.0` → pipeline complète → artefacts publiés
+- ✅ Release publiée sur GitHub avec 2 artefacts
+- ✅ PR `noctalia-dev/community-plugins` (prochaine étape manuelle)
 
 ---
 

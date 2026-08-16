@@ -37,7 +37,7 @@ jobs:
       - name: Collector Unit Tests
         run: |
           curl -sL -o dkjson.lua https://raw.githubusercontent.com/LuaDist/dkjson/master/dkjson.lua
-          lua collectors/test_collectors.lua
+          lua collectors/test_collectors.luau
 
       - name: Luau Format Check
         run: |

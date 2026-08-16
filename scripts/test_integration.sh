@@ -63,7 +63,7 @@ fi
 
 # Test 5: Collector unit tests
 echo "Test 5: Running collector unit tests..."
-if lua collectors/test_collectors.lua; then
+if lua collectors/test_collectors.luau; then
     echo "✓ Collector unit tests passed"
 else
     echo "FAIL: Collector unit tests failed"

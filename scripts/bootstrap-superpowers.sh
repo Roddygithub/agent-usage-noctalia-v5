@@ -10,7 +10,10 @@ command -v git >/dev/null 2>&1 || {
 }
 
 # Create .opencode/skills directory if it doesn't exist
-mkdir -p .opencode/skills
+mkdir -p .opencode/skills/test-driven-development
+mkdir -p .opencode/skills/subagent-driven-development
+mkdir -p .opencode/skills/systematic-debugging
+mkdir -p .opencode/skills/writing-plans
 
 # Clone Superpowers skills (or copy from installed location)
 # For now, create a minimal skill set for TDD and subagent-driven-development

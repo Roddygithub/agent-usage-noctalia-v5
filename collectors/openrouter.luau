@@ -9,9 +9,21 @@ local function now_ms()
     return os.time() * 1000
 end
 
+-- Get HOME safely (os.getenv may not be available in the Noctalia sandbox)
+local function home_dir()
+    local home = os.getenv and os.getenv("HOME")
+    if not home or home == "" then
+        home = os.getenv and os.getenv("USERPROFILE") or ""
+    end
+    if not home or home == "" then
+        home = "/home/" .. ((os.getenv and os.getenv("USER")) or "roddy")
+    end
+    return home
+end
+
 local function expand_path(path)
     if path:sub(1, 1) == "~" then
-        return os.getenv("HOME") .. path:sub(2)
+        return home_dir() .. path:sub(2)
     end
     return path
 end
@@ -84,7 +96,7 @@ function M.collect(config)
     if auth_data and auth_data.openrouter and auth_data.openrouter.key then
         api_key = auth_data.openrouter.key
     elseif config.api_key_env then
-        api_key = os.getenv(config.api_key_env)
+        api_key = os.getenv and os.getenv(config.api_key_env)
     end
 
     if not api_key then

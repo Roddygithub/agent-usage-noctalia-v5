@@ -9,6 +9,18 @@ local function now_ms()
     return os.time() * 1000
 end
 
+-- Get HOME safely (os.getenv may not be available in the Noctalia sandbox)
+local function home_dir()
+    local home = os.getenv and os.getenv("HOME")
+    if not home or home == "" then
+        home = os.getenv and os.getenv("USERPROFILE") or ""
+    end
+    if not home or home == "" then
+        home = "/home/" .. ((os.getenv and os.getenv("USER")) or "roddy")
+    end
+    return home
+end
+
 -- Current OpenAI models (2025-2026) - from OpenAI docs
 local OPENAI_MODELS = {
     -- GPT-5.6 series (latest)
@@ -101,7 +113,7 @@ end
 
 local function expand_path(path)
     if path:sub(1, 1) == "~" then
-        return os.getenv("HOME") .. path:sub(2)
+        return home_dir() .. path:sub(2)
     end
     return path
 end

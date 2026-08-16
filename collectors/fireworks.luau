@@ -9,6 +9,18 @@ local function now_ms()
     return os.time() * 1000
 end
 
+-- Get HOME safely (os.getenv may not be available in the Noctalia sandbox)
+local function home_dir()
+    local home = os.getenv and os.getenv("HOME")
+    if not home or home == "" then
+        home = os.getenv and os.getenv("USERPROFILE") or ""
+    end
+    if not home or home == "" then
+        home = "/home/" .. ((os.getenv and os.getenv("USER")) or "roddy")
+    end
+    return home
+end
+
 local M = {
     name = "fireworks",
     default_config = {
@@ -39,7 +51,7 @@ end
 
 local function expand_path(path)
     if path:sub(1, 1) == "~" then
-        return os.getenv("HOME") .. path:sub(2)
+        return home_dir() .. path:sub(2)
     end
     return path
 end
@@ -91,7 +103,7 @@ end
 -- ─────────────────────────────────────────────────────────────────────────────
 
 local function fetch_billing_api(config, local_config)
-    local api_key = os.getenv(config.api_key_env or "FIREWORKS_API_KEY")
+    local api_key = os.getenv and os.getenv(config.api_key_env or "FIREWORKS_API_KEY")
     if not api_key then
         return nil, "FIREWORKS_API_KEY not set"
     end

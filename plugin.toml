@@ -5,15 +5,15 @@
 
 id = "roddygithub/agent-usage"
 name = "Agent Usage Monitor"
-version = "0.1.0"
-plugin_api = 27
+version = "1.0.0"
+plugin_api = 23
 author = "roddygithub"
 license = "GPL-3.0"
 deprecated = false
-tags = ["ai", "coding", "agents", "usage", "monitoring"]
+tags = ["ai", "coding", "agents", "usage", "monitoring", "openrouter", "opencode-zen"]
 dependencies = []
-icon = "robot"
-description = "Native AI coding agent usage monitor for Noctalia V5. Tracks quota, balance, and token analytics for opencode, Claude, Codex, and Fireworks."
+icon = "icon.svg"
+description = "Native AI coding agent usage monitor for Noctalia V5. Tracks quota, balance, and token analytics for opencode, Claude, Codex, Fireworks, OpenRouter, and OpenCode Zen."
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Plugin-level settings (shared across all entries)

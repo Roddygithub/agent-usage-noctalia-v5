@@ -9,6 +9,18 @@ local function now_ms()
     return os.time() * 1000
 end
 
+-- Get HOME safely (os.getenv may not be available in the Noctalia sandbox)
+local function home_dir()
+    local home = os.getenv and os.getenv("HOME")
+    if not home or home == "" then
+        home = os.getenv and os.getenv("USERPROFILE") or ""
+    end
+    if not home or home == "" then
+        home = "/home/" .. ((os.getenv and os.getenv("USER")) or "roddy")
+    end
+    return home
+end
+
 local M = {
     name = "opencode",
     default_config = {
@@ -39,7 +51,7 @@ function M.collect(config)
 
     -- Expand tilde
     if path:sub(1, 1) == "~" then
-        path = os.getenv("HOME") .. path:sub(2)
+        path = home_dir() .. path:sub(2)
     end
 
     -- Read file
