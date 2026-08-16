@@ -1,5 +1,5 @@
 -- Agent Usage Detail Panel for Noctalia V5
--- Declarative UI panel showing limits, balance, tokens charts, sync status
+-- Declarative UI panel (ui.* tree) showing limits, balance, tokens charts, sync
 -- Author: roddygithub
 -- Plugin API: 27
 
@@ -18,12 +18,6 @@ local function format_quota(quota)
     end
     local pct = math.floor((quota.used / quota.limit) * 100)
     return string.format("%d%% (%d/%d)", pct, quota.used, quota.limit)
-end
-
-local function format_balance(balance)
-    if not balance then return "—" end
-    local est = balance.estimated and " (est.)" or ""
-    return string.format("$%.2f%s", balance.credits, est)
 end
 
 local function format_time_ms(ms)
@@ -79,296 +73,145 @@ local function agent_glyph(agent)
 end
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- IPC Actions
--- ─────────────────────────────────────────────────────────────────────────────
-
-local function send_ipc(cmd, args)
-    local payload = { cmd = cmd, args = args or {} }
-    local json = noctalia.json.encode(payload)
-    noctalia.runAsync({ "noctalia", "msg", "plugin", "roddygithub/agent-usage:service", "all", cmd }, function() end)
-end
-
--- ─────────────────────────────────────────────────────────────────────────────
--- UI Tree Rendering
+-- Sections
 -- ─────────────────────────────────────────────────────────────────────────────
 
 local function render_hero(merged)
     local primary = merged.primary_agent
     local snap = primary and merged.agents[primary]
-    local speaking = merged.speaking
-
     local badge_text = "IDLE"
     local badge_color = "gray"
     if snap then
         if snap.speaking then
             badge_text = "SPEAKING"
-            badge_color = "pulse"
+            badge_color = "secondary"
         elseif snap.quota and snap.quota.limit and snap.quota.limit > 0 then
             local pct = math.floor((snap.quota.used / snap.quota.limit) * 100)
             if pct >= 90 then
                 badge_text = "LIMIT"
-                badge_color = "red"
+                badge_color = "error"
             elseif pct >= 70 then
                 badge_text = "HIGH"
-                badge_color = "orange"
+                badge_color = "warning"
             else
                 badge_text = "OK"
-                badge_color = "green"
+                badge_color = "success"
             end
-        else
-            badge_text = "IDLE"
-            badge_color = "gray"
         end
     end
 
     local plan = snap and snap.plan or "—"
-    local auth_status = "Connected"
-    if merged.error then
-        auth_status = "Error: " .. merged.error
-    end
+    local quota_text = snap and snap.quota and format_quota(snap.quota) or "—"
+    local auth_status = merged.error and ("Error: " .. merged.error) or "Connected"
 
-    return {
-        type = "box",
-        orientation = "horizontal",
-        spacing = 12,
-        children = {
-            {
-                type = "badge",
-                text = badge_text,
-                color = badge_color,
-                size = "large",
-            },
-            {
-                type = "box",
-                orientation = "vertical",
-                spacing = 2,
-                grow = true,
-                children = {
-                    {
-                        type = "box",
-                        orientation = "horizontal",
-                        spacing = 8,
-                        children = {
-                            { type = "glyph", name = "robot", size = 20 },
-                            { type = "text", text = primary and agent_label(primary) or "—", weight = "bold", size = "large" },
-                            { type = "badge", text = plan, color = "blue", size = "small" },
-                        }
-                    },
-                    {
-                        type = "text",
-                        text = auth_status,
-                        color = "muted",
-                        size = "small",
-                    },
-                }
-            },
-            {
-                type = "box",
-                orientation = "horizontal",
-                spacing = 8,
-                children = {
-                    {
-                        type = "button",
-                        text = "Refresh",
-                        variant = "primary",
-                        on_click = "ipc:refresh",
-                    },
-                    {
-                        type = "button",
-                        text = "Toggle Sync",
-                        variant = "secondary",
-                        on_click = "ipc:toggle_sync",
-                    },
-                }
-            },
-        }
-    }
+    return ui.column({ gap = 10 }, {
+        ui.row({ gap = 8, align = "center" }, {
+            ui.glyph({ name = snap and agent_glyph(primary) or "code", size = 20, color = "primary" }),
+            ui.label({ text = snap and agent_label(primary) or "No agent", fontSize = 16, fontWeight = "bold", color = "on_surface", flexGrow = 1 }),
+            ui.label({ text = badge_text, fontSize = 11, fontWeight = "bold", color = badge_color }),
+        }),
+        ui.row({ gap = 8, align = "center" }, {
+            ui.label({ text = "Plan: " .. plan, fontSize = 12, color = "on_surface_variant" }),
+            ui.label({ text = quota_text, fontSize = 12, color = "on_surface_variant", flexGrow = 1 }),
+        }),
+        ui.label({ text = auth_status, fontSize = 11, color = "on_surface_variant" }),
+    })
 end
 
 local function render_limits(merged)
     local primary = merged.primary_agent
     local snap = primary and merged.agents[primary]
     if not snap or not snap.limits or #snap.limits == 0 then
-        return {
-            type = "text",
-            text = "No limit data available",
-            color = "muted",
-            margin_top = 8,
-        }
+        return ui.label({ text = "No limit data available", fontSize = 12, color = "on_surface_variant" })
     end
 
     local items = {}
     for _, limit in ipairs(snap.limits) do
         local pct = limit.percent or 0
-        local color = "green"
-        if pct >= 90 then color = "red" elseif pct >= 70 then color = "orange" end
+        local color = "success"
+        if pct >= 90 then color = "error" elseif pct >= 70 then color = "warning" end
 
-        table.insert(items, {
-            type = "card",
-            margin_bottom = 8,
-            children = {
-                {
-                    type = "box",
-                    orientation = "horizontal",
-                    spacing = 8,
-                    children = {
-                        { type = "text", text = limit.name or "Limit", weight = "bold", grow = true },
-                        { type = "badge", text = string.format("%.0f%%", pct), color = color, size = "small" },
-                    }
-                },
-                {
-                    type = "box",
-                    orientation = "horizontal",
-                    spacing = 12,
-                    children = {
-                        {
-                            type = "progress",
-                            value = math.floor(pct),
-                            max = 100,
-                            color = color,
-                            grow = true,
-                        },
-                        {
-                            type = "text",
-                            text = string.format("%d/%d", limit.used or 0, limit.limit or 0),
-                            size = "small",
-                            color = "muted",
-                        },
-                        {
-                            type = "text",
-                            text = "Reset: " .. (limit.reset_ms and (format_time_ms(limit.reset_ms) .. " left") or "—"),
-                            size = "small",
-                            color = "muted",
-                        },
-                    }
-                },
-            }
-        })
+        table.insert(items, ui.column({ gap = 4, fill = "surface/0.5", radius = 8, padding = 8 }, {
+            ui.row({ gap = 8, align = "center" }, {
+                ui.label({ text = limit.name or "Limit", fontSize = 12, fontWeight = "bold", color = "on_surface", flexGrow = 1 }),
+                ui.label({ text = string.format("%.0f%%", pct), fontSize = 11, fontWeight = "bold", color = color }),
+            }),
+            ui.row({ gap = 8, align = "center" }, {
+                ui.progress({ value = math.floor(pct), max = 100, color = color, flexGrow = 1 }),
+                ui.label({ text = string.format("%d/%d", limit.used or 0, limit.limit or 0), fontSize = 11, color = "on_surface_variant" }),
+            }),
+            ui.label({
+                text = "Reset: " .. (limit.reset_ms and (format_time_ms(limit.reset_ms) .. " left") or "—"),
+                fontSize = 11,
+                color = "on_surface_variant",
+            }),
+        }))
     end
 
-    return {
-        type = "box",
-        orientation = "vertical",
-        spacing = 8,
-        children = {
-            { type = "text", text = "Limites", weight = "bold", size = "large", margin_bottom = 8 },
-            { type = "box", orientation = "vertical", spacing = 4, children = items },
-        }
-    }
+    return ui.column({ gap = 8 }, {
+        ui.label({ text = "Limites", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
+        ui.column({ gap = 6, children = items }),
+    })
 end
 
 local function render_balance(merged)
     local primary = merged.primary_agent
     local snap = primary and merged.agents[primary]
     if not snap or not snap.balance then
-        return {
-            type = "text",
-            text = "Balance data not available",
-            color = "muted",
-            margin_top = 8,
-        }
+        return ui.label({ text = "Balance data not available", fontSize = 12, color = "on_surface_variant" })
     end
 
     local balance = snap.balance
     local credits = balance.credits or 0
     local funded = balance.funded or credits
     local ratio = funded > 0 and credits / funded or 0
-    local color = "green"
-    if ratio < 0.2 then color = "red" elseif ratio < 0.5 then color = "orange" end
+    local color = "success"
+    if ratio < 0.2 then color = "error" elseif ratio < 0.5 then color = "warning" end
 
-    return {
-        type = "box",
-        orientation = "vertical",
-        spacing = 8,
-        children = {
-            { type = "text", text = "Balance", weight = "bold", size = "large", margin_bottom = 8 },
-            {
-                type = "box",
-                orientation = "horizontal",
-                spacing = 12,
-                children = {
-                    {
-                        type = "gauge",
-                        value = math.floor(ratio * 100),
-                        max = 100,
-                        color = color,
-                        size = "large",
-                        grow = true,
-                    },
-                    {
-                        type = "box",
-                        orientation = "vertical",
-                        spacing = 4,
-                        children = {
-                            { type = "text", text = string.format("$%.2f / $%.2f", credits, funded), weight = "bold" },
-                            { type = "text", text = string.format("Spent: $%.2f (%.0f%%)", funded - credits, (1 - ratio) * 100), color = "muted", size = "small" },
-                            { type = "text", text = balance.estimated and "Estimated" or "Live", size = "small", color = balance.estimated and "orange" or "green" },
-                        }
-                    },
-                }
-            },
-        }
-    }
+    return ui.column({ gap = 8 }, {
+        ui.label({ text = "Balance", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
+        ui.column({ gap = 6, fill = "surface/0.5", radius = 8, padding = 8 }, {
+            ui.row({ gap = 8, align = "center" }, {
+                ui.label({ text = string.format("$%.2f / $%.2f", credits, funded), fontSize = 13, fontWeight = "bold", color = "on_surface", flexGrow = 1 }),
+                ui.label({ text = string.format("(%.0f%%)", ratio * 100), fontSize = 11, fontWeight = "bold", color = color }),
+            }),
+            ui.progress({ value = math.floor(ratio * 100), max = 100, color = color }),
+            ui.label({ text = string.format("Spent: $%.2f", funded - credits), fontSize = 11, color = "on_surface_variant" }),
+            ui.label({ text = balance.estimated and "Estimated" or "Live", fontSize = 11, color = balance.estimated and "warning" or "success" }),
+        }),
+    })
 end
 
 local function render_tokens_daily(merged)
     local primary = merged.primary_agent
     local snap = primary and merged.agents[primary]
     if not snap or not snap.tokens_daily or #snap.tokens_daily == 0 then
-        return {
-            type = "text",
-            text = "Daily token data not available",
-            color = "muted",
-            margin_top = 8,
-        }
+        return ui.label({ text = "Daily token data not available", fontSize = 12, color = "on_surface_variant" })
     end
 
-    -- Simple bar chart using progress bars
     local items = {}
     for _, day in ipairs(snap.tokens_daily) do
         local is_today = day.today or false
-        table.insert(items, {
-            type = "card",
-            margin_bottom = 4,
-            children = {
-                {
-                    type = "box",
-                    orientation = "horizontal",
-                    spacing = 8,
-                    children = {
-                        { type = "text", text = day.date or "—", weight = is_today and "bold" or "normal", size = "small", width = 60 },
-                        { type = "progress", value = day.percent or 0, max = 100, color = is_today and "blue" or "gray", grow = true },
-                        { type = "text", text = format_tokens(day.tokens or 0), size = "small", color = "muted", width = 80 },
-                    }
-                },
-            }
-        })
+        table.insert(items, ui.row({ gap = 8, align = "center" }, {
+            ui.label({ text = day.date or "—", fontSize = 11, fontWeight = is_today and "bold" or "normal", color = "on_surface", width = 60 }),
+            ui.progress({ value = day.percent or 0, max = 100, color = is_today and "primary" or "on_surface_variant", flexGrow = 1 }),
+            ui.label({ text = format_tokens(day.tokens or 0), fontSize = 11, color = "on_surface_variant", width = 70 }),
+        }))
     end
 
-    return {
-        type = "box",
-        orientation = "vertical",
-        spacing = 8,
-        children = {
-            { type = "text", text = "Tokens / Jour (7j)", weight = "bold", size = "large", margin_bottom = 8 },
-            { type = "box", orientation = "vertical", spacing = 4, children = items },
-        }
-    }
+    return ui.column({ gap = 8 }, {
+        ui.label({ text = "Tokens / Jour (7j)", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
+        ui.column({ gap = 4, children = items }),
+    })
 end
 
 local function render_tokens_by_model(merged)
     local primary = merged.primary_agent
     local snap = primary and merged.agents[primary]
     if not snap or not snap.tokens_by_model or next(snap.tokens_by_model) == nil then
-        return {
-            type = "text",
-            text = "Model breakdown not available",
-            color = "muted",
-            margin_top = 8,
-        }
+        return ui.label({ text = "Model breakdown not available", fontSize = 12, color = "on_surface_variant" })
     end
 
-    -- Sort models by token count descending
     local models = {}
     local total = 0
     for model, count in pairs(snap.tokens_by_model) do
@@ -386,40 +229,21 @@ local function render_tokens_by_model(merged)
             type_counts = string.format(" (in:%d out:%d cache:%d)", t.input or 0, t.output or 0, t.cache or 0)
         end
 
-        table.insert(items, {
-            type = "card",
-            margin_bottom = 4,
-            children = {
-                {
-                    type = "box",
-                    orientation = "horizontal",
-                    spacing = 8,
-                    children = {
-                        { type = "text", text = m.model, weight = "bold", grow = true },
-                        { type = "badge", text = pct .. "%", color = "blue", size = "small" },
-                        { type = "text", text = format_tokens(m.count) .. type_counts, size = "small", color = "muted" },
-                    }
-                },
-                {
-                    type = "progress",
-                    value = pct,
-                    max = 100,
-                    color = "blue",
-                },
-            }
-        })
+        table.insert(items, ui.column({ gap = 4 }, {
+            ui.row({ gap = 8, align = "center" }, {
+                ui.label({ text = m.model, fontSize = 12, fontWeight = "bold", color = "on_surface", flexGrow = 1 }),
+                ui.label({ text = pct .. "%", fontSize = 11, fontWeight = "bold", color = "primary" }),
+                ui.label({ text = format_tokens(m.count) .. type_counts, fontSize = 11, color = "on_surface_variant" }),
+            }),
+            ui.progress({ value = pct, max = 100, color = "primary" }),
+        }))
     end
 
-    return {
-        type = "box",
-        orientation = "vertical",
-        spacing = 8,
-        children = {
-            { type = "text", text = "Tokens / Modèle", weight = "bold", size = "large", margin_bottom = 8 },
-            { type = "text", text = "Total: " .. format_tokens(total), color = "muted", size = "small", margin_bottom = 8 },
-            { type = "box", orientation = "vertical", spacing = 4, children = items },
-        }
-    }
+    return ui.column({ gap = 8 }, {
+        ui.label({ text = "Tokens / Modèle", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
+        ui.label({ text = "Total: " .. format_tokens(total), fontSize = 11, color = "on_surface_variant" }),
+        ui.column({ gap = 8, children = items }),
+    })
 end
 
 local function render_sync(merged)
@@ -429,8 +253,6 @@ local function render_sync(merged)
     local devices = {}
     local device_count = 0
 
-    -- Get sync config from service (would need to be published separately)
-    -- For now, read from merged sync state if available
     if merged.sync then
         sync_mode = merged.sync.mode or "Off"
         sync_dir = merged.sync.dir or ""
@@ -440,108 +262,74 @@ local function render_sync(merged)
     end
 
     local status_text = sync_mode == "On" and "Activé" or "Désactivé"
-    local status_color = sync_mode == "On" and "green" or "gray"
+    local status_color = sync_mode == "On" and "success" or "on_surface_variant"
+
+    local children = {
+        ui.label({ text = "Sync Multi-Machine", fontSize = 14, fontWeight = "bold", color = "on_surface" }),
+        ui.row({ gap = 8, align = "center" }, {
+            ui.label({ text = status_text, fontSize = 12, fontWeight = "bold", color = status_color }),
+            ui.label({ text = "Dossier: " .. (sync_dir ~= "" and sync_dir or "—"), fontSize = 11, color = "on_surface_variant", flexGrow = 1 }),
+        }),
+        ui.row({ gap = 12 }, {
+            ui.label({ text = "Dernière sync: " .. last_sync, fontSize = 11, color = "on_surface_variant" }),
+            ui.label({ text = "Appareils: " .. device_count, fontSize = 11, color = "on_surface_variant" }),
+        }),
+    }
 
     local device_items = {}
     for _, dev in ipairs(devices) do
-        table.insert(device_items, {
-            type = "box",
-            orientation = "horizontal",
-            spacing = 8,
-            children = {
-                { type = "text", text = dev.id, weight = "bold", grow = true },
-                { type = "text", text = "Agent: " .. (dev.primary_agent or "—"), color = "muted" },
-                { type = "text", text = "Vu: " .. (dev.last_seen and format_time_ms(dev.last_seen) or "—"), color = "muted" },
-            }
-        })
+        table.insert(device_items, ui.row({ gap = 8, align = "center" }, {
+            ui.label({ text = dev.id, fontSize = 12, fontWeight = "bold", color = "on_surface", flexGrow = 1 }),
+            ui.label({ text = "Agent: " .. (dev.primary_agent or "—"), fontSize = 11, color = "on_surface_variant" }),
+            ui.label({ text = "Vu: " .. (dev.last_seen and format_time_ms(dev.last_seen) or "—"), fontSize = 11, color = "on_surface_variant" }),
+        }))
     end
 
-    return {
-        type = "box",
-        orientation = "vertical",
-        spacing = 8,
-        children = {
-            { type = "text", text = "Sync Multi-Machine", weight = "bold", size = "large", margin_bottom = 8 },
-            {
-                type = "box",
-                orientation = "horizontal",
-                spacing = 12,
-                children = {
-                    { type = "badge", text = status_text, color = status_color, size = "large" },
-                    { type = "text", text = "Dossier: " .. (sync_dir ~= "" and sync_dir or "—"), color = "muted", grow = true },
-                }
-            },
-            {
-                type = "box",
-                orientation = "horizontal",
-                spacing = 12,
-                children = {
-                    { type = "text", text = "Dernière sync: " .. last_sync, color = "muted" },
-                    { type = "text", text = "Appareils: " .. device_count, color = "muted" },
-                }
-            },
-            device_count > 0 and {
-                type = "box",
-                orientation = "vertical",
-                spacing = 4,
-                margin_top = 8,
-                children = {
-                    { type = "text", text = "Appareils connectés:", weight = "bold", size = "small" },
-                    { type = "box", orientation = "vertical", spacing = 2, children = device_items },
-                }
-            } or { type = "text", text = "Aucun appareil connecté", color = "muted", margin_top = 8 },
-            {
-                type = "box",
-                orientation = "horizontal",
-                spacing = 8,
-                children = {
-                    { type = "button", text = "Forcer Sync", variant = "primary", on_click = "ipc:force_sync" },
-                    { type = "button", text = sync_mode == "On" and "Désactiver" or "Activer", variant = "secondary", on_click = "ipc:toggle_sync" },
-                }
-            },
-        }
-    }
+    if device_count > 0 then
+        table.insert(children, ui.column({ gap = 4 }, {
+            ui.label({ text = "Appareils connectés:", fontSize = 11, fontWeight = "bold", color = "on_surface" }),
+            ui.column({ gap = 2, children = device_items }),
+        }))
+    else
+        table.insert(children, ui.label({ text = "Aucun appareil connecté", fontSize = 11, color = "on_surface_variant" }))
+    end
+
+    return ui.column({ gap = 8 }, children)
 end
 
 local function render_full_panel(merged)
-    return {
-        type = "scroll",
-        children = {
-            render_hero(merged),
-            { type = "separator", margin_top = 16, margin_bottom = 16 },
-            render_limits(merged),
-            { type = "separator", margin_top = 16, margin_bottom = 16 },
-            render_balance(merged),
-            { type = "separator", margin_top = 16, margin_bottom = 16 },
-            render_tokens_daily(merged),
-            { type = "separator", margin_top = 16, margin_bottom = 16 },
-            render_tokens_by_model(merged),
-            { type = "separator", margin_top = 16, margin_bottom = 16 },
-            render_sync(merged),
-        }
-    }
+    return ui.scroll({ flexGrow = 1, gap = 14 }, {
+        render_hero(merged),
+        ui.separator({}),
+        render_limits(merged),
+        ui.separator({}),
+        render_balance(merged),
+        ui.separator({}),
+        render_tokens_daily(merged),
+        ui.separator({}),
+        render_tokens_by_model(merged),
+        ui.separator({}),
+        render_sync(merged),
+    })
 end
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Lifecycle
 -- ─────────────────────────────────────────────────────────────────────────────
 
-function init()
-    -- Initial render
-    local merged = noctalia.state.get("agent_usage") or { primary_agent = nil, agents = {}, speaking = false }
+local function render()
+    local merged = noctalia.state.get(STATE_KEY_USAGE) or { primary_agent = nil, agents = {}, speaking = false }
     panel.render(render_full_panel(merged))
+end
 
-    -- Watch for updates
-    noctalia.state.watch("agent_usage", function(new_merged)
-        panel.render(render_full_panel(new_merged))
-    end)
+function init()
+    -- Watch for updates (panel entry may be loaded before the service publishes)
+    noctalia.state.watch(STATE_KEY_USAGE, render)
+    noctalia.state.watch(STATE_KEY_SYNC, render)
+end
 
-    -- Watch sync state if available
-    noctalia.state.watch("agent_usage_sync", function(new_sync)
-        local merged = noctalia.state.get("agent_usage") or {}
-        merged.sync = new_sync
-        panel.render(render_full_panel(merged))
-    end)
+function onOpen(_context)
+    render()
 end
 
 function shutdown()
@@ -551,5 +339,9 @@ end
 function update()
     -- Periodic refresh handled by state watches
 end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Entry Point
+-- ─────────────────────────────────────────────────────────────────────────────
 
 init()

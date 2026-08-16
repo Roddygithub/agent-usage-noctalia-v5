@@ -194,7 +194,7 @@ end
 
 function onRightClick()
     -- Force refresh
-    noctalia.runAsync({ "noctalia", "msg", "plugin", "roddygithub/agent-usage:service", "all", "refresh" }, function() end)
+    noctalia.runAsync("noctalia msg plugin roddygithub/agent-usage:collector all refresh", function() end)
 end
 
 -- ─────────────────────────────────────────────────────────────────────────────
