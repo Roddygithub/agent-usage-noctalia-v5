@@ -186,3 +186,17 @@
 ---
 
 *Dernière MAJ : 2026-08-16 — Test visuel validé (widget barre + panel), polling périodique, v1.0.2 released*
+
+### 2026-08-16 — Quota Réel opencode via wham/usage + v1.0.4
+- ✅ **Quota réel opencode** : `collect_async` dans `collectors/opencode.luau` appelle l'API officielle OpenAI `https://chatgpt.com/backend-api/wham/usage` avec le token OAuth Bearer de `~/.local/share/opencode/auth.json` (plan_type: "plus", used_percent: 100, reset_at correct)
+- ✅ **runAsync sandbox fix** : `result.code` est `nil` dans la sandbox Noctalia v5 → parsing direct de stdout via marqueur `HTTP_CODE:%{http_code}` (pattern `(.-)\n?HTTP_CODE:%d+$`) sans dépendre de `result.code`
+- ✅ **openrouter corrigé** : même fix nil code → parsing JSON direct, openrouter maintenant fonctionnel (Free Tier, free models listés)
+- ✅ **Panel honnête** : `format_quota` préfère `quota.percent` quand présent (affiche "100%" au lieu de "100% (100/100)" trompeur)
+- ✅ **Nettoyage sécurité** : cache d'état avec token Bearer fui supprimé ; nouvelle collecte sans leak
+- ✅ 11 tests passent (inclut nouveau test `test_opencode_collect_async_fallback`)
+- ✅ Release **v1.0.4** publiée : quota réel, runAsync fix, panel honnête
+- 🔜 **Widget affiche 100%** (limit atteint, plan Plus, fenêtre hebdo, reset dans ~4j)
+
+---
+
+### 2026-08-16 — Test Visuel Noctalia + Correctifs Sandbox

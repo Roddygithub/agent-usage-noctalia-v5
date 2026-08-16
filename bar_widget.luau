@@ -131,8 +131,9 @@ local function render(merged)
 
     if not display_snap then
         -- No agents loaded
+        local msg = merged.message or "No agents"
         barWidget.setGlyph(config.glyph_opencode)
-        barWidget.setText("No agents")
+        barWidget.setText(msg)
         barWidget.setVisible(not config.hide_when_idle)
         return
     end

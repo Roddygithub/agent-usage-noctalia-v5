@@ -88,9 +88,9 @@ local function load_state_cache()
     if data.last_snapshot.primary_agent == nil then data.last_snapshot.primary_agent = nil end
     if data.last_snapshot.speaking == nil then data.last_snapshot.speaking = false end
 
-    -- Check cache age (max 24 hours)
+    -- Check cache age (max 7 days)
     local age_ms = now_ms() - (data.timestamp or 0)
-    if age_ms > 24 * 60 * 60 * 1000 then
+    if age_ms > 7 * 24 * 60 * 60 * 1000 then
         log("Cache expired (" .. math.floor(age_ms / 1000 / 60) .. " min old)")
         return nil
     end
@@ -103,11 +103,21 @@ local function save_state_cache(merged_snapshot)
     local path = get_cache_path()
     if not path then return end
 
+    -- Support both calling conventions:
+    -- 1. save_state_cache(merged) — direct snapshot
+    -- 2. save_state_cache({ last_snapshot = merged, sync = ... }) — wrapper
+    local actual_snapshot = merged_snapshot
+    local sync_data = nil
+    if merged_snapshot.last_snapshot then
+        actual_snapshot = merged_snapshot.last_snapshot
+        sync_data = merged_snapshot.sync
+    end
+
     local cache_data = {
         version = 1,
         timestamp = now_ms(),
-        last_snapshot = merged_snapshot,
-        -- Could also save panel geometry, user prefs here
+        last_snapshot = actual_snapshot,
+        sync = sync_data,
     }
 
     local ok, json_str = pcall(noctalia.json.encode, cache_data)
