@@ -1,0 +1,16 @@
+# Test artefacts (downloaded by CI)
+dkjson.lua
+specs/dkjson.lua
+
+# Luau analysis / tooling
+noctalia.d.lua
+.luau-lsp.json
+
+# Local tooling state
+.opencode/
+.agents/
+_bmad/
+_vibe-coding/
+
+# Build / temp
+*.log

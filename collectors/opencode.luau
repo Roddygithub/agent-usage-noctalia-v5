@@ -82,6 +82,16 @@ function M.collect(config)
     local models = data.models or {}
     local speaking = data.speaking or false
 
+    -- Normalize tokens_by_model: values may be plain numbers or objects {tokens, ...}
+    local normalized_models = {}
+    for model, v in pairs(models) do
+        if type(v) == "table" then
+            normalized_models[model] = v.tokens or v.count or 0
+        else
+            normalized_models[model] = v
+        end
+    end
+
     local tokens_used = usage.tokens or 0
     local tokens_limit = usage.limit or 0
     local reset_ts = usage.reset or 0
@@ -104,7 +114,7 @@ function M.collect(config)
         balance = nil, -- opencode doesn't have balance concept
         speaking = speaking,
         tokens_today = tokens_used,
-        tokens_by_model = models,
+        tokens_by_model = normalized_models,
         tokens_by_type = nil, -- opencode doesn't provide type breakdown
         limits = {},
     }

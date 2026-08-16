@@ -83,6 +83,11 @@ local function load_state_cache()
         return nil
     end
 
+    -- Normalize restored snapshot fields
+    if data.last_snapshot.agents == nil then data.last_snapshot.agents = {} end
+    if data.last_snapshot.primary_agent == nil then data.last_snapshot.primary_agent = nil end
+    if data.last_snapshot.speaking == nil then data.last_snapshot.speaking = false end
+
     -- Check cache age (max 24 hours)
     local age_ms = now_ms() - (data.timestamp or 0)
     if age_ms > 24 * 60 * 60 * 1000 then
@@ -311,7 +316,8 @@ local function publish_status(merged_snapshot)
     local primary = merged_snapshot.primary_agent
     local speaking = merged_snapshot.speaking and " (speaking)" or ""
     local agent_count = 0
-    for _ in pairs(merged_snapshot.agents) do agent_count = agent_count + 1 end
+    local agents = merged_snapshot.agents or {}
+    for _ in pairs(agents) do agent_count = agent_count + 1 end
     log(string.format("Status published: primary=%s, agents=%d%s",
         primary or "none", agent_count, speaking))
 end
@@ -334,6 +340,37 @@ end
 
 local function execute_collector(agent_name, collector, config)
     return function(callback)
+        local function handle_result(result)
+            if result then
+                -- Validate snapshot has required fields
+                if result.version and result.timestamp and result.agent then
+                    -- Ensure agent field matches
+                    result.agent = agent_name
+                    callback(result, nil)
+                else
+                    callback(nil, "Invalid snapshot: missing required fields")
+                end
+            else
+                callback(nil, result or "Collector returned nil")
+            end
+        end
+
+        -- Async collectors (e.g. network-backed) use collector.collect_async(config, callback)
+        if collector.collect_async then
+            local ok, err = pcall(collector.collect_async, config, function(snapshot, collect_err)
+                if snapshot then
+                    handle_result(snapshot)
+                else
+                    callback(nil, collect_err or "Collector returned nil")
+                end
+            end)
+            if not ok then
+                log_warn("Collector '" .. agent_name .. "' threw error: " .. tostring(err))
+                callback(nil, "Collector threw: " .. tostring(err))
+            end
+            return
+        end
+
         local ok, result = pcall(collector.collect, config)
         if not ok then
             log_warn("Collector '" .. agent_name .. "' threw error: " .. tostring(result))
@@ -341,20 +378,13 @@ local function execute_collector(agent_name, collector, config)
             return
         end
 
-        if result then
-            -- Validate snapshot has required fields
-            if result.version and result.timestamp and result.agent then
-                -- Ensure agent field matches
-                result.agent = agent_name
-                callback(result, nil)
-            else
-                callback(nil, "Invalid snapshot: missing required fields")
-            end
-        else
-            callback(nil, result or "Collector returned nil")
-        end
+        handle_result(result)
     end
 end
+
+-- Forward declarations for functions defined below but called from run_collectors
+local read_sync_snapshots, merge_sync_snapshots, publish_sync_status, write_sync_snapshot
+local pulse_speaking, check_speaking_agents
 
 local function run_collectors()
     local pending = 0
@@ -419,7 +449,21 @@ end
 -- Speaking Pulse Management
 -- ─────────────────────────────────────────────────────────────────────────────
 
-local function check_speaking_agents(merged)
+function pulse_speaking(agent_name)
+    if not state.speaking_timers[agent_name] then return end
+
+    local pulse_on = true
+    local function toggle()
+        if not state.speaking_timers[agent_name] then return end
+        pulse_on = not pulse_on
+        -- The widget will read STATE_KEY_SPEAKING and animate accordingly
+        noctalia.state.set(STATE_KEY_SPEAKING, pulse_on)
+        noctalia.setTimeout(500, toggle)
+    end
+    toggle()
+end
+
+function check_speaking_agents(merged)
     if not state.config.show_speaking_indicator then return end
 
     local speaking_agent = nil
@@ -445,25 +489,11 @@ local function check_speaking_agents(merged)
     end
 end
 
-local function pulse_speaking(agent_name)
-    if not state.speaking_timers[agent_name] then return end
-
-    local pulse_on = true
-    local function toggle()
-        if not state.speaking_timers[agent_name] then return end
-        pulse_on = not pulse_on
-        -- The widget will read STATE_KEY_SPEAKING and animate accordingly
-        noctalia.state.set(STATE_KEY_SPEAKING, pulse_on)
-        noctalia.setTimeout(500, toggle)
-    end
-    toggle()
-end
-
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Sync Read & Merge
 -- ─────────────────────────────────────────────────────────────────────────────
 
-local function read_sync_snapshots()
+function read_sync_snapshots()
     if state.config.sync_dir == "" then
         return {}, "sync_dir not configured"
     end
@@ -494,7 +524,7 @@ local function read_sync_snapshots()
     return snapshots, nil
 end
 
-local function merge_sync_snapshots(snapshots)
+function merge_sync_snapshots(snapshots)
     if #snapshots == 0 then
         return nil
     end
@@ -642,7 +672,7 @@ local function merge_sync_snapshots(snapshots)
     return merged
 end
 
-local function publish_sync_status(merged_sync)
+function publish_sync_status(merged_sync)
     if merged_sync then
         noctalia.state.set(STATE_KEY_SYNC, merged_sync)
     end
@@ -652,7 +682,7 @@ end
 -- Sync Writing
 -- ─────────────────────────────────────────────────────────────────────────────
 
-local function write_sync_snapshot(merged)
+function write_sync_snapshot(merged)
     if state.config.sync_dir == "" then return end
 
     local sync_data = {
@@ -770,6 +800,7 @@ end
 function init()
     log("Service initializing...")
     load_config()
+    noctalia.setUpdateInterval(state.config.refresh_interval_sec * 1000)
     load_collectors()
 
     -- Detect OpenCode Zen (free models)
@@ -856,12 +887,18 @@ end
 
 function update()
     -- Called by Noctalia at setUpdateInterval
-    -- Polling is handled by run_collectors scheduled via setTimeout for retry logic
-    -- This function exists to satisfy the service entry interface
+    noctalia.setUpdateInterval(state.config.refresh_interval_sec * 1000)
+    run_collectors()
 end
 
 function onIpc(payload)
     on_ipc(payload)
+end
+
+function onConfigChanged()
+    load_config()
+    noctalia.setUpdateInterval(state.config.refresh_interval_sec * 1000)
+    run_collectors()
 end
 
 -- ─────────────────────────────────────────────────────────────────────────────

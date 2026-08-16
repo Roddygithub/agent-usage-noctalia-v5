@@ -14,7 +14,22 @@ noctalia = {
     json = {
         encode = json.encode,
         decode = json.decode,
-    }
+    },
+    readFile = function(path)
+        -- Mock: return canned usage.json content for tests
+        if path:match("usage%.json") then
+            return [[{
+                "plan": "pro",
+                "usage": { "tokens": 18300, "limit": 50000, "reset": 1723852800 },
+                "models": {
+                    "code": { "tokens": 15000 },
+                    "deepseek-v4-flash-free": { "tokens": 3300 }
+                },
+                "speaking": false
+            }]]
+        end
+        return nil, "not found"
+    end,
 }
 
 local function run_test(name, fn)
@@ -162,6 +177,17 @@ local function test_opencode_collector()
     -- Just verify contract
     assert_equal(type(collector.collect), "function")
     assert_equal(type(collector.validate_config), "function")
+
+    -- Test model normalization: object values -> plain numbers
+    local snap, err = collector.collect({ config_path = "~/.config/opencode/usage.json" })
+    assert_equal(snap ~= nil, true, "opencode collect with mock file: " .. tostring(err))
+    assert_table_contains(snap.tokens_by_model, "code", "tokens_by_model has code")
+    assert_table_contains(snap.tokens_by_model, "deepseek-v4-flash-free", "tokens_by_model has deepseek")
+    assert_equal(type(snap.tokens_by_model.code), "number", "normalized model value is number")
+    assert_equal(snap.tokens_by_model.code, 15000, "code model tokens normalized")
+    assert_equal(snap.tokens_by_model["deepseek-v4-flash-free"], 3300, "deepseek tokens normalized")
+    assert_equal(snap.quota.used, 18300, "quota used parsed")
+    assert_equal(snap.quota.limit, 50000, "quota limit parsed")
 end
 
 local function test_claude_collector()
